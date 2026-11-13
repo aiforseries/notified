@@ -1,4 +1,4 @@
-"""Developer check: python -m regwatch.probe [source_id|module ...] [--days N]
+"""Developer check: python -m notified.probe [source_id|module ...] [--days N]
 Runs the given sources live and prints what they return."""
 from __future__ import annotations
 

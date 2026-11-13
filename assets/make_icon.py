@@ -1,9 +1,9 @@
-"""Generates assets/regwatch.ico and assets/regwatch.png (run once; outputs are committed)."""
+"""Generates assets/notified.ico and assets/notified.png (run once; outputs are committed)."""
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-HERE = Path(__file__).resolve().parent.parent / "regwatch" / "assets"
+HERE = Path(__file__).resolve().parent.parent / "notified" / "assets"
 S = 1024  # draw large, downsample for smooth edges
 
 
@@ -38,7 +38,7 @@ def make() -> Image.Image:
 
 if __name__ == "__main__":
     big = make()
-    big.resize((256, 256), Image.LANCZOS).save(HERE / "regwatch.png")
+    big.resize((256, 256), Image.LANCZOS).save(HERE / "notified.png")
     big.resize((256, 256), Image.LANCZOS).save(
-        HERE / "regwatch.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+        HERE / "notified.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     print("ok")

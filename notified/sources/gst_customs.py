@@ -9,7 +9,7 @@ CBIC: https://taxinformation.cbic.gov.in/ is an Angular (JHipster) SPA backed by
 
 GSTN: https://www.gst.gov.in/newsandupdates is an AngularJS page that loads /fomessage/newsupdates
   (JSON, ~20 latest items, dates dd/mm/yyyy). The gst.gov.in WAF rejects the curl_cffi browser
-  impersonation used by regwatch.http ("Request Rejected") but serves ordinary requests, so this
+  impersonation used by notified.http ("Request Rejected") but serves ordinary requests, so this
   feed uses plain `requests`.
 """
 from __future__ import annotations

@@ -27,10 +27,11 @@ mca.gov.in and incometaxindia.gov.in block automated access, so they are reached
 ## Features
 
 - **Register** – every update as a dated register entry: regulator, type, reference number and title, newest first. Search titles, reference numbers *and the text inside downloaded PDFs*; filter by regulator or topic. Open an entry to read it on the regulator's site or open the PDF, and stamp it *To review / Action / Noted / Not relevant* with an owner and notes. Keyboard: `/` search, `↑ ↓` move, `Enter` open, `o` open on site, `Esc` close.
-- **Excel tracker** – `This run` (what you just fetched) and `All updates` (history). Status / Owner / Notes are kept across refreshes, whether you edit them in Excel or in the app.
+- **Excel tracker** – `Latest fetch` (what you just fetched), `All updates` (history), `Events & notices` (webinars, courses, student and admin notices, kept out of the way) and `Sources` (what was checked, with links). Titles link to the official page; Status is a dropdown coloured like the app's stamps. Status / Owner / Notes are kept across refreshes, whether you edit them in Excel or in the app.
+- **Key changes** – new or amended rules, regulations, master directions, frameworks and standards, and requirements taking effect, are flagged *Key change* in the register, the tracker and the digest (which lists them on its cover).
 - **Digest PDF** – one click builds an A4 summary of the period grouped by topic, with a deadlines & extensions box, ready to send to a partner or client.
 - **Duplicates merged** – the same document seen via the regulator, e-Gazette and PIB shows as one row ("Also at").
-- **Topic tags** – keyword rules (Audit, GST, Labour & Payroll, Deadline / Extension, Posted late, …); student/exam and internal admin notices are tagged so they can be hidden. Edit `tag_rules.json` in the output folder to tune.
+- **Topic tags** – keyword rules (Audit, Risk, Controls & Internal Audit, GST, Labour & Payroll, Deadline / Extension, Posted late, …); events/CPE, student/exam, enforcement news and internal admin notices are tagged so they can be hidden. Edit `tag_rules.json` in the output folder to tune.
 - **Posted late** – a document that appears after its date was already checked is still caught and flagged.
 - **Runs in the background** – optional daily / weekly checks from the system tray with a Windows notification ("5 new updates: SEBI 3, RBI 2"); can start with Windows.
 - **Update check** – tells you when a newer Notified is on GitHub (can be turned off in Settings).
@@ -56,14 +57,14 @@ Notified.exe --list                            # list source ids
 ```powershell
 python -m venv .venv; .venv\Scripts\activate
 ./build.ps1                                # -> dist\Notified.exe
-python -m regwatch                         # run the app from source
-python -m regwatch.probe sebi --days 30    # live-test adapters
+python -m notified                         # run the app from source
+python -m notified.probe sebi --days 30    # live-test adapters
 python tests/test_dedupe.py
 ```
 
 Pushing a tag `v*` builds the exe on GitHub Actions and attaches it to a Release.
 
-To add a source: subclass `Source` in a module under `regwatch/sources/` (see `base.py`), list it in the module's `SOURCES`, and add the module name to `MODULES` in `sources/__init__.py`. Only use openly published listings.
+To add a source: subclass `Source` in a module under `notified/sources/` (see `base.py`), list it in the module's `SOURCES`, and add the module name to `MODULES` in `sources/__init__.py`. Only use openly published listings.
 
 ## Licence
 

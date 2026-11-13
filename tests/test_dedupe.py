@@ -1,4 +1,4 @@
-"""Tests for regwatch.dedupe. Run: python -m pytest tests  (or: python tests/test_dedupe.py)"""
+"""Tests for notified.dedupe. Run: python -m pytest tests  (or: python tests/test_dedupe.py)"""
 from __future__ import annotations
 
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from regwatch.dedupe import extract_refs, merge_duplicates, titles_match, token_set_ratio  # noqa: E402
+from notified.dedupe import extract_refs, merge_duplicates, titles_match, token_set_ratio  # noqa: E402
 
 _n = 0
 

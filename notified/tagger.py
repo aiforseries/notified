@@ -22,7 +22,7 @@ REGULATOR_DEFAULT = {
 }
 # Tags that mean "not a professional update": they replace every other topic on the item.
 NOISE_TAGS = ("Internal / Admin", "Enforcement news", "Students / Exams", "Events & CPE")
-FLAG_TAGS = ("Deadline / Extension", "Posted late")
+FLAG_TAGS = ("Deadline / Extension", "Posted late", "Key change")
 # Regulators whose posts span many subjects: their home topic applies only when nothing more specific matches.
 WEAK_DEFAULT = {"ICAI", "ICSI"}
 RULES_FILE = "tag_rules.json"
@@ -49,7 +49,10 @@ class Tagger:
         if "Customs & Foreign Trade" in tags and regulator in ("CBDT", "GSTN"):
             tags.remove("Customs & Foreign Trade")
         d = REGULATOR_DEFAULT.get(regulator)
-        if d and d not in tags:
+        if d and d in tags and regulator not in WEAK_DEFAULT:
+            tags.remove(d)
+            tags.insert(0, d)  # the regulator's home topic leads (e.g. RBI -> Banking, then Risk)
+        elif d and d not in tags:
             professional = [t for t in tags if t not in FLAG_TAGS and t not in NOISE_TAGS]
             if regulator in WEAK_DEFAULT and professional:
                 pass  # e.g. an ICAI Direct Taxes Committee post belongs under Income Tax, not Audit

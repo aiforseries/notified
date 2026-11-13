@@ -11,7 +11,7 @@ from .paths import config_dir
 
 
 def _setup_logging():
-    logging.basicConfig(filename=config_dir() / "regwatch.log", level=logging.INFO,
+    logging.basicConfig(filename=config_dir() / "notified.log", level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 

@@ -17,7 +17,7 @@ from .sources import all_sources
 from .store import Store
 from .tagger import Tagger, ensure_rules
 
-log = logging.getLogger("regwatch")
+log = logging.getLogger("notified")
 TRACKER_NAME = "Notified_Tracker.xlsx"
 LEGACY_TRACKER = "RegWatch_Tracker.xlsx"
 
@@ -209,7 +209,7 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
     store.set_last_run(run_uids, since, run_ts)
     store.kv_set("run_log", json.dumps(run_log))
     from .usercols import merged
-    tracker = write_tracker(output_dir / TRACKER_NAME, store.all_rows(), new_uids, run_log, sources,
+    tracker = write_tracker(output_dir / TRACKER_NAME, tagger.retag(store.all_rows()), new_uids, run_log, sources,
                             run_uids=run_uids, user_cols=merged(store, output_dir / TRACKER_NAME))
     store.close()
     failures = [e["name"] for e in run_log if e["status"] != "OK"]
@@ -233,7 +233,7 @@ def rewrite_tracker(output_dir: Path) -> Path | None:
             return None
         from .usercols import merged
         run_uids, _, run_ts = store.last_run()
-        rows = store.all_rows()
+        rows = Tagger(ensure_rules(output_dir)).retag(store.all_rows())
         new_uids = {r["uid"] for r in rows if r["first_seen"] and r["first_seen"].isoformat(timespec="seconds") == run_ts}
         run_log = json.loads(store.kv_get("run_log", "[]"))
         return write_tracker(tracker, rows, new_uids, run_log, {s.id: s for s in all_sources()},

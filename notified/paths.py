@@ -11,7 +11,7 @@ LEGACY = "RegWatch"  # the app's name before v0.4
 
 def resource(name: str) -> Path:
     """Path to a file bundled with the package (works inside the PyInstaller exe)."""
-    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)) / "regwatch"
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent)) / "notified"
     return base / name
 
 

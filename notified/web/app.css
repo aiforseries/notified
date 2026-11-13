@@ -356,3 +356,7 @@ mark { background: var(--violet-wash); color: var(--ink); border-radius: 2px; pa
   max-width: 46ch; unicode-bidi: plaintext;
 }
 .setting-text { min-width: 0; }
+
+/* flags on register entries */
+.entry .flag-key { color: var(--green); font-weight: 650; }
+.entry .flag-deadline { color: var(--amber); font-weight: 600; }
