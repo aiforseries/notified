@@ -21,8 +21,10 @@ REGULATOR_DEFAULT = {
     "CCI": "Competition Law",
 }
 # Tags that mean "not a professional update": they replace every other topic on the item.
-NOISE_TAGS = ("Internal / Admin", "Enforcement news", "Students / Exams")
+NOISE_TAGS = ("Internal / Admin", "Enforcement news", "Students / Exams", "Events & CPE")
 FLAG_TAGS = ("Deadline / Extension", "Posted late")
+# Regulators whose posts span many subjects: their home topic applies only when nothing more specific matches.
+WEAK_DEFAULT = {"ICAI", "ICSI"}
 RULES_FILE = "tag_rules.json"
 _SHIPPED_NOTE = ".tag_rules.shipped"  # hash of the rules version we last copied in
 
@@ -48,7 +50,11 @@ class Tagger:
             tags.remove("Customs & Foreign Trade")
         d = REGULATOR_DEFAULT.get(regulator)
         if d and d not in tags:
-            tags.insert(0, d)
+            professional = [t for t in tags if t not in FLAG_TAGS and t not in NOISE_TAGS]
+            if regulator in WEAK_DEFAULT and professional:
+                pass  # e.g. an ICAI Direct Taxes Committee post belongs under Income Tax, not Audit
+            else:
+                tags.insert(0, d)
         for noise in NOISE_TAGS:  # housekeeping / enforcement news / student notices: not professional topics
             if noise in tags:
                 return [noise] + (["Deadline / Extension"] if noise == "Students / Exams" and

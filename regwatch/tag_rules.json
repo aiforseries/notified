@@ -14,7 +14,12 @@
     "peer review",
     "NFRA",
     "audit file",
-    "internal audit"
+    "internal audit",
+    "code of ethics",
+    "NOCLAR",
+    "ethical standards",
+    "audit quality",
+    "peer review"
   ],
   "Accounting Standards / Ind AS": [
     "Ind AS",
@@ -23,7 +28,9 @@
     "financial statements",
     "IFRS",
     "AS \\d{1,2}\\b",
-    "guidance note"
+    "Ind AS \\d+",
+    "Indian Accounting Standards?",
+    "guidance note on (?:accounting|financial statements|audit of)"
   ],
   "Companies Act / LLP": [
     "Companies Act",
@@ -42,7 +49,8 @@
     "strike off",
     "company law",
     "NCLT",
-    "general circular"
+    "general circular",
+    "corporate laws?"
   ],
   "Income Tax / TDS": [
     "income[- ]tax",
@@ -59,7 +67,10 @@
     "transfer pricing",
     "safe harbour",
     "DTAA",
-    "Income-tax Rules"
+    "Income-tax Rules",
+    "direct tax(?:es)?",
+    "international taxation",
+    "transfer pricing"
   ],
   "GST": [
     "GST",
@@ -263,7 +274,30 @@
     "Rashtriya Ekta",
     "Yoga Day",
     "Foundation Day",
-    "Pendency"
+    "Pendency",
+    "expression of interest",
+    "EoI",
+    "faculty",
+    "resource persons?",
+    "speakers? in",
+    "campus placement",
+    "newsletter",
+    "knowledge corner",
+    "knowledge hub",
+    "activity report",
+    "milestones achieved",
+    "awardees",
+    "register on",
+    "useful links",
+    "archives",
+    "browsing of websites",
+    "digital learning",
+    "https?://\\S+",
+    "update their details",
+    "awards? for excellence",
+    "annual report for year",
+    "draft panel for appointment",
+    "empanelment of"
   ],
   "IFSC / GIFT City": [
     "IFSC",
@@ -304,5 +338,49 @@
     "drugs? worth",
     "gold worth",
     "trafficking"
+  ],
+  "Events & CPE": [
+    "webinars?",
+    "seminars?",
+    "conferences?",
+    "conclave",
+    "convention",
+    "workshops?",
+    "summit",
+    "training (?:programme|program|course)",
+    "virtual training",
+    "certificate course",
+    "self-paced course",
+    "course on",
+    "online batch",
+    "batch[- ]\\d+",
+    "quiz",
+    "competitions?",
+    "registrations? (?:are )?open",
+    "live session",
+    "CPE",
+    "ecothon",
+    "refresher course",
+    "talk show",
+    "awareness (?:programme|session)",
+    "outreach programme",
+    "skillup",
+    "eligibility test",
+    "assessment test",
+    "post qualification course",
+    "hackathon",
+    "live demonstration",
+    "forum,",
+    "CFO forum",
+    "pathshala",
+    "series \\(\\d+\\)",
+    "scheduled on",
+    "knowledge series",
+    "gyan sagar",
+    "awards?\\b",
+    "delighted to inform",
+    "symposium",
+    "felicitation",
+    "ELEVATE"
   ]
 }

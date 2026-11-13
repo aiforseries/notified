@@ -34,6 +34,29 @@ def clean_text(s: str) -> str:
     return s.replace("�", "'")
 
 
+def _apply_baseline(store: Store, source_id: str, items: list) -> list:
+    """For sources whose posts carry no date ("What's New" boxes). First run: keep undated items that mention
+    the current year / financial year, remember the rest. Later runs: undated items not seen before are new."""
+    key = f"baseline:{source_id}"
+    raw = store.kv_get(key, "")
+    first = raw == ""
+    baseline = set(json.loads(raw)) if raw else set()
+    y = date.today().year
+    current = re.compile(rf"\b({y}|{y - 1}-{str(y)[2:]}|{y}-{str(y + 1)[2:]}|{y - 1}-{y}|{y}-{y + 1})\b")
+    keep = []
+    for i in items:
+        if i.date:
+            keep.append(i)
+            continue
+        if i.uid in baseline:
+            continue
+        baseline.add(i.uid)
+        if not first or current.search(i.title):
+            keep.append(i)
+    store.kv_set(key, json.dumps(sorted(baseline)))
+    return keep
+
+
 @dataclass
 class Settings:
     output_dir: str = str(default_output_dir())
@@ -101,6 +124,8 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
                 items = [i for i in f.result() if in_scope(i, s.id)]
                 for i in items:
                     i.title = clean_text(i.title)
+                if s.undated_baseline:
+                    items = _apply_baseline(store, s.id, items)
                 results[s.id] = items
                 progress(f"  OK    {s.name}: {len(items)}")
             except Exception as e:  # noqa: BLE001 - one site failing must not stop the run

@@ -19,7 +19,10 @@ class Source:
     name: str = ""          # human name, e.g. "SEBI - Circulars"
     group: str = ""         # UI group: "ICAI & Audit" | "MCA" | "Direct Tax" | "GST & Customs" | "SEBI" | "RBI" | "Labour" | "Data Protection"
     homepage: str = ""      # listing page, for the user to check manually if the adapter breaks
-    enabled_by_default: bool = True  # False = shown in UI but unticked (e.g. site restricts automated access)
+    enabled_by_default: bool = True  # False = shown in UI but unticked (e.g. high volume)
+    # True for "What's New"-style lists whose posts carry no date: the first run keeps only undated items that
+    # mention the current year and remembers the rest; later runs show undated items that are new since then.
+    undated_baseline: bool = False
 
     def fetch(self, since: date) -> list[Item]:
         raise NotImplementedError

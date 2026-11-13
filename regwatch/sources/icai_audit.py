@@ -176,4 +176,81 @@ class NfraPress(_NfraCategory):
     id, name, slug, doc_type = "nfra_press", "NFRA - Press Briefs", "press-release", "Press Release"
 
 
-SOURCES = (IcaiAnnouncements, IcaiOpenExposureDrafts, NfraCirculars, NfraOrders, NfraConsultation, NfraInspection, NfraPress)
+class IcaiNotifications(IcaiAnnouncements):
+    """ICAI's own notifications (regulations, new branches, course/assessment notifications)."""
+    id = "icai_notifications"
+    name = "ICAI - Notifications"
+    homepage = f"{ICAI}/category/notifications"
+    max_pages = 3
+
+
+# Student / staff facing pages that never carry professional updates.
+_SKIP_COMMITTEES = {"board-of-studies", "board-of-studies-operations", "career-counselling-committee",
+                    "editorial-board", "public-relations-committee", "examination-committee", "sports-committee"}
+_DATED_SUFFIX = re.compile(r"\s*-?\s*\((\d{1,2}[-./]\d{1,2}[-./]\d{4})\)\s*$")
+
+
+class IcaiCommittees(Source):
+    """Every ICAI board and committee page (AASB, ASB, Direct Taxes, GST & Indirect Taxes, Ethical Standards,
+    Peer Review, Sustainability Reporting, ...). Much of it is events and courses; the tagger marks those
+    'Events & CPE' so they can be hidden."""
+    id = "icai_committees"
+    regulator = "ICAI"
+    name = "ICAI - Boards & committees"
+    group = "ICAI & Audit"
+    homepage = f"{ICAI}/category/standing"
+    undated_baseline = True
+
+    def _committees(self) -> dict[str, str]:
+        out: dict[str, str] = {}
+        for listing in ("standing", "non-standing"):
+            try:
+                b, _ = http.soup(f"{ICAI}/category/{listing}")
+            except Exception:  # noqa: BLE001
+                continue
+            for a in b.find_all("a", href=re.compile(r"/category/[a-z0-9-]+(committee|board|group)[a-z0-9-]*/?$")):
+                slug = a["href"].rstrip("/").rsplit("/", 1)[-1]
+                if slug not in _SKIP_COMMITTEES:
+                    out.setdefault(slug, _clean(a.get_text(" ")))
+        if not out:
+            raise RuntimeError("ICAI committee directory not found (layout changed?)")
+        return out
+
+    def fetch(self, since: date):
+        items, seen = [], set()
+        for slug, committee in self._committees().items():
+            try:
+                b, _ = http.soup(f"{ICAI}/category/{slug}")
+            except Exception:  # noqa: BLE001 - one committee page down shouldn't drop the rest
+                continue
+            box = b.select_one("ul.announcement_member")  # the committee's "What's New" list
+            if not box:
+                continue
+            for a in box.find_all("a", href=True):
+                text = _clean(a.get_text(" "))
+                if len(text) < 15:
+                    continue
+                # posts carry no posting date; use a "(dd-mm-yyyy)" suffix if present, else a date in the text
+                # (usually the event date). Undated items in "What's New" are current by definition.
+                m = _DATED_SUFFIX.search(text)
+                d = parse_date(m.group(1)) if m else find_date(text)
+                if d and d < since:
+                    continue
+                if d and d > date.today() and (d - date.today()).days > 120:
+                    d = None  # far-future date in text (e.g. a deadline) isn't a posting date
+                link = http.absolute(ICAI + "/", a["href"])
+                title = (text[: m.start()] if m else text).rstrip(" .-")
+                key = (title.lower(), d)
+                if key in seen:  # the same post often appears on several committee pages
+                    continue
+                seen.add(key)
+                items.append(self.item(title=title, date=d, url=link, doc_type="Announcement", ref_no=committee,
+                                       pdf_url=link if link.lower().endswith(".pdf") else ""))
+        return items
+
+    def resolve_pdf(self, item):
+        return IcaiAnnouncements.resolve_pdf(self, item)
+
+
+SOURCES = (IcaiAnnouncements, IcaiNotifications, IcaiCommittees, IcaiOpenExposureDrafts,
+           NfraCirculars, NfraOrders, NfraConsultation, NfraInspection, NfraPress)

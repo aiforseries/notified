@@ -30,7 +30,7 @@ TOPIC_ORDER = [
 ]
 DEADLINE_TAG = "Deadline / Extension"
 FLAG_TAGS = {DEADLINE_TAG, "Posted late"}
-DEFAULT_EXCLUDE = ("Students / Exams", "Internal / Admin", "Enforcement news")
+DEFAULT_EXCLUDE = ("Students / Exams", "Internal / Admin", "Enforcement news", "Events & CPE")
 OTHER = "Other updates"
 DISCLAIMER = "Compiled from official regulator websites by RegWatch. Refer to the official document before acting."
 ACTION = "Relevant - action needed"

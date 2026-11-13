@@ -147,11 +147,11 @@ async function loadRegister() {
   const note = $("#noiseNote");
   if (res.hidden) {
     note.hidden = false;
-    note.innerHTML = `${plural(res.hidden, "student, exam or internal admin notice")} hidden. <button class="linkish" id="showNoise">Show them</button>`;
+    note.innerHTML = `${plural(res.hidden, "event, course, student or admin notice")} hidden. <button class="linkish" id="showNoise">Show them</button>`;
     $("#showNoise").onclick = () => { S.showNoise = true; loadRegister(); };
   } else if (S.showNoise) {
     note.hidden = false;
-    note.innerHTML = `Showing student, exam and admin notices. <button class="linkish" id="hideNoise">Hide them</button>`;
+    note.innerHTML = `Showing events, courses, student and admin notices. <button class="linkish" id="hideNoise">Hide them</button>`;
     $("#hideNoise").onclick = () => { S.showNoise = false; loadRegister(); };
   } else note.hidden = true;
   renderList();
