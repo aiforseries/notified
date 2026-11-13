@@ -51,6 +51,9 @@ class _SebiListing(Source):
             if total is None:
                 m = re.search(r"of\s+(\d+)\s+records", html)
                 total = int(m.group(1)) if m else None
+                if total is None and page == 0 and "<tr" not in html and "totalpage" not in html:
+                    # blank/odd reply: fail loudly so it shows as ERROR, not as "0 new items"
+                    raise RuntimeError("SEBI listing returned an unexpected empty response")
             b = BeautifulSoup(html, "lxml")
             new = 0
             for tr in b.find_all("tr"):

@@ -36,6 +36,8 @@ class Tagger:
         d = REGULATOR_DEFAULT.get(item.regulator)
         if d and d not in tags:
             tags.insert(0, d)
+        if "Internal / Admin" in tags:  # regulator housekeeping: keep it out of professional topics
+            tags = ["Internal / Admin"]
         if "Students / Exams" in tags:  # student/exam noise shouldn't also look like a professional update
             tags = [t for t in tags if t in ("Students / Exams", "Deadline / Extension")]
         return tags

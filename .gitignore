@@ -6,3 +6,7 @@ dist/
 *.xlsx
 history.db
 .claude/
+/PDFs/
+/tag_rules.json
+/tests/
+RegWatch_Tracker*.xlsx

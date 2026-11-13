@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
 
@@ -19,6 +20,18 @@ from .tagger import Tagger
 
 log = logging.getLogger("regwatch")
 TRACKER_NAME = "RegWatch_Tracker.xlsx"
+# Regulators often post documents days or weeks after their issue date. Each source looks back this many
+# extra days; an older-dated item is kept only if that source has run before and has never seen it.
+LATE_BUFFER_DAYS = 45
+LATE_TAG = "Posted late"
+
+
+def clean_text(s: str) -> str:
+    """Some sites emit U+FFFD where a curly quote or dash was. Spaced -> dash, otherwise -> quote."""
+    if "�" not in s:
+        return s
+    s = re.sub(r"\s�\s", " - ", s)
+    return s.replace("�", "'")
 
 
 @dataclass
@@ -27,6 +40,8 @@ class Settings:
     days: int = 30
     enabled: list[str] = field(default_factory=list)       # source ids; empty = defaults
     pdf_regulators: list[str] = field(default_factory=list)
+    known_ids: list[str] = field(default_factory=list)    # sources that existed when `enabled` was saved
+    theme: str = "system"                                  # light | dark | system
 
     @classmethod
     def load(cls) -> "Settings":
@@ -61,14 +76,27 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
     chosen = [sources[i] for i in source_ids if i in sources]
     run_ts = datetime.now().isoformat(timespec="seconds")
     progress(f"Fetching {len(chosen)} sources since {since:%d-%b-%Y} ...")
+    store = Store(output_dir / "history.db")
+    known = {s.id: store.known(s.id) for s in chosen}
+    covered = {s.id: store.covered_from(s.id) for s in chosen}  # earliest date already scanned, or None
+    fetch_since = since - timedelta(days=LATE_BUFFER_DAYS)
+
+    def in_scope(i, sid) -> bool:
+        if not i.date or i.date >= since:
+            return True
+        # Older-dated: keep only if an earlier run already scanned that date and didn't see it (= posted late).
+        c = covered[sid]
+        return c is not None and i.date >= max(c, fetch_since) and i.uid not in known[sid]
 
     results, run_log = {}, []
     with ThreadPoolExecutor(max_workers=6) as ex:
-        futs = {ex.submit(s.fetch, since): s for s in chosen}
+        futs = {ex.submit(s.fetch, fetch_since): s for s in chosen}
         for f in as_completed(futs):
             s = futs[f]
             try:
-                items = [i for i in f.result() if not i.date or i.date >= since]
+                items = [i for i in f.result() if in_scope(i, s.id)]
+                for i in items:
+                    i.title = clean_text(i.title)
                 results[s.id] = items
                 progress(f"  OK    {s.name}: {len(items)}")
             except Exception as e:  # noqa: BLE001 - one site failing must not stop the run
@@ -81,11 +109,15 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
                 ex.shutdown(cancel_futures=True)
                 break
 
-    store = Store(output_dir / "history.db")
     all_items = [i for items in results.values() if items for i in items]
     for it in all_items:
         it.tags = tagger.tag(it)
+        if it.date and it.date < since:
+            it.tags.append(LATE_TAG)
     new_uids = store.upsert(all_items, run_ts)
+    for sid, items in results.items():
+        if items is not None:
+            store.mark_covered(sid, since)  # only the requested window counts as scanned
     for s in chosen:
         items = results.get(s.id)
         if items is not None:
@@ -119,7 +151,8 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
         progress(f"  {saved} PDFs saved")
 
     progress("Writing Excel tracker ...")
-    tracker = write_tracker(output_dir / TRACKER_NAME, store.all_rows(), new_uids, run_log, sources)
+    tracker = write_tracker(output_dir / TRACKER_NAME, store.all_rows(), new_uids, run_log, sources,
+                            run_uids={i.uid for i in all_items})
     store.close()
     failures = [e["name"] for e in run_log if e["status"] != "OK"]
     progress(f"Done: {len(new_uids)} new, {len(all_items)} in period, {len(failures)} source(s) failed.")

@@ -10,6 +10,8 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
+RUN_SHEET = "This run"
+HISTORY_SHEET = "All updates"
 USER_COLS = ["Status", "Owner", "Notes"]
 STATUS_CHOICES = ["To review", "Relevant - action needed", "Reviewed / noted", "Not relevant"]
 COLUMNS = [  # (header, width)
@@ -29,32 +31,49 @@ def _read_user_columns(path: Path) -> dict[str, dict[str, str]]:
         wb = load_workbook(path, read_only=True)
     except Exception:  # noqa: BLE001 - corrupt/locked file: start fresh rather than fail
         return {}
-    if "Updates" not in wb.sheetnames:
-        return {}
-    ws = wb["Updates"]
-    rows = ws.iter_rows(values_only=True)
-    header = [str(h) if h is not None else "" for h in next(rows, [])]
-    if "UID" not in header:
-        return {}
-    iu = header.index("UID")
-    idx = {c: header.index(c) for c in USER_COLS if c in header}
-    out = {}
-    for r in rows:
-        if not r or iu >= len(r) or not r[iu]:
+    out: dict[str, dict[str, str]] = {}
+    # History sheet first, then "This run" on top: an edit made on the run sheet wins.
+    for name in ("Updates", HISTORY_SHEET, RUN_SHEET):  # "Updates" = v0.1 layout
+        if name not in wb.sheetnames:
             continue
-        vals = {c: r[i] for c, i in idx.items() if i < len(r) and r[i] not in (None, "")}
-        if vals:
-            out[str(r[iu])] = vals
+        rows = wb[name].iter_rows(values_only=True)
+        header = [str(h) if h is not None else "" for h in next(rows, [])]
+        if "UID" not in header:
+            continue
+        iu = header.index("UID")
+        idx = {c: header.index(c) for c in USER_COLS if c in header}
+        for r in rows:
+            if not r or iu >= len(r) or not r[iu]:
+                continue
+            vals = {c: r[i] for c, i in idx.items() if i < len(r) and r[i] not in (None, "")}
+            if vals:
+                out.setdefault(str(r[iu]), {}).update(vals)
     wb.close()
     return out
 
 
-def write_tracker(path: Path, rows: list[dict], new_uids: set[str], run_log: list[dict], sources_by_id: dict) -> Path:
-    """Write the workbook; if the file is open in Excel, write a timestamped copy instead. Returns the path written."""
+def write_tracker(path: Path, rows: list[dict], new_uids: set[str], run_log: list[dict], sources_by_id: dict,
+                  run_uids: set[str] | None = None) -> Path:
+    """Sheets: 'This run' (only what this run fetched), 'All updates' (full history), 'Last run', 'About'.
+    If the file is open in Excel, writes a timestamped copy instead. Returns the path written."""
     keep = _read_user_columns(path)
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Updates"
+    run_rows = [r for r in rows if run_uids is None or r["uid"] in run_uids]
+    _updates_sheet(wb.active, RUN_SHEET, run_rows, new_uids, keep, sources_by_id)
+    _updates_sheet(wb.create_sheet(), HISTORY_SHEET, rows, new_uids, keep, sources_by_id)
+    _rest(wb, run_log)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        wb.save(path)
+        return path
+    except PermissionError:
+        alt = path.with_name(f"{path.stem} {datetime.now():%Y-%m-%d %H%M}{path.suffix}")
+        wb.save(alt)
+        return alt
+
+
+def _updates_sheet(ws, title, rows, new_uids, keep, sources_by_id):
+    ws.title = title
     ws.append([h for h, _ in COLUMNS])
     for i, (_, w) in enumerate(COLUMNS, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -92,6 +111,8 @@ def write_tracker(path: Path, rows: list[dict], new_uids: set[str], run_log: lis
     dv.add(f"I2:I{max(last, 5000)}")
     ws.column_dimensions["N"].hidden = True
 
+
+def _rest(wb, run_log):
     lg = wb.create_sheet("Last run")
     lg.append(["Run at", datetime.now().strftime("%d-%b-%Y %H:%M")])
     lg.append([])
@@ -111,20 +132,13 @@ def write_tracker(path: Path, rows: list[dict], new_uids: set[str], run_log: lis
     about = wb.create_sheet("About")
     for line in [
         "RegWatch - free tracker of Indian regulatory updates (open source).",
-        "Updates sheet: every item fetched so far. Yellow rows / 'NEW' = first seen in the latest run.",
-        "Status, Owner and Notes are yours: they are carried over each time the tracker is refreshed.",
+        f"'{RUN_SHEET}': only the sources and period you picked in the latest run.",
+        f"'{HISTORY_SHEET}': everything fetched so far, across all runs.",
+        "Yellow rows / 'NEW' = first seen in the latest run. 'Posted late' = appeared after its date was already covered.",
+        "Status, Owner and Notes are yours: they are carried over each time the tracker is refreshed (edit on either sheet).",
         "Topics are keyword-based (edit tag_rules.json in the output folder to tune them).",
         "Always rely on the official document - titles/dates are as published on the regulator's site.",
         "If a source shows an error on 'Last run', the site layout may have changed - use the link to check manually.",
     ]:
         about.append([line])
     about.column_dimensions["A"].width = 120
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        wb.save(path)
-        return path
-    except PermissionError:
-        alt = path.with_name(f"{path.stem} {datetime.now():%Y-%m-%d %H%M}{path.suffix}")
-        wb.save(alt)
-        return alt
