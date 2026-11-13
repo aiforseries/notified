@@ -15,6 +15,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from notified.sources import all_sources  # noqa: E402
 
+# These sites refuse connections from outside India (seen from GitHub's runners: resets, 403s, timeouts),
+# though they work normally from Indian networks. The cloud check reports them as "not checked" instead of
+# failing; run this script locally (or rely on the tracker's Sources sheet) to check them.
+INDIA_ONLY_PREFIXES = ("cbic_", "dgft_", "epfo_", "esic_")
+
 
 def check(src, since):
     t = time.time()
@@ -29,9 +34,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--report", default="health.md")
+    ap.add_argument("--outside-india", action="store_true",
+                    help="running outside India (e.g. GitHub Actions): skip sites that block foreign traffic")
     a = ap.parse_args()
     since = date.today() - timedelta(days=a.days)
     sources = all_sources()
+    skipped = [s for s in sources if a.outside_india and s.id.startswith(INDIA_ONLY_PREFIXES)]
+    sources = [s for s in sources if s not in skipped]
     results = []
     with ThreadPoolExecutor(max_workers=6) as ex:
         for f in as_completed([ex.submit(check, s, since) for s in sources]):
@@ -43,6 +52,10 @@ def main() -> int:
     lines = [f"Checked {len(results)} sources on {date.today():%d %b %Y} (items since {since:%d %b %Y}).", ""]
     lines.append(f"**{len(failed)} failing**, {len(results) - len(failed)} working"
                  + (f" ({len(empty)} returned nothing in the period, which can be normal)." if empty else "."))
+    if skipped:
+        lines += ["", f"Not checked from here ({len(skipped)}): these sites only answer Indian networks. "
+                      "Run `python tools/health.py` from India to check them: "
+                      + ", ".join(f"`{s.id}`" for s in skipped)]
     if failed:
         lines += ["", "| Source | Error | Listing |", "|---|---|---|"]
         for s, _, _, err, _ in failed:

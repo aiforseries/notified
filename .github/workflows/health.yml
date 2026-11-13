@@ -20,7 +20,7 @@ jobs:
       - name: Check every source
         id: check
         continue-on-error: true
-        run: python tools/health.py --days 30 --report health.md
+        run: python tools/health.py --days 30 --report health.md --outside-india
       - name: Open, update or close the health issue
         env:
           GH_TOKEN: ${{ github.token }}
