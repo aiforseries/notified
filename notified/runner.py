@@ -46,6 +46,17 @@ def clean_text(s: str) -> str:
     return s.replace("�", "'")
 
 
+def selected_sources(settings, sources) -> set[str]:
+    """Source ids the user has switched on. A saved choice is respected even when it is empty ("all off");
+    sources added in later versions that are on by default are switched on for existing users too."""
+    defaults = {s.id for s in sources if s.enabled_by_default}
+    if settings.known_ids:  # a choice has been saved (possibly "none")
+        return set(settings.enabled) | (defaults - set(settings.known_ids))
+    if settings.enabled:  # saved by an older version that didn't record known_ids
+        return set(settings.enabled)
+    return defaults  # first run
+
+
 def _apply_baseline(store: Store, source_id: str, items: list) -> list:
     """For sources whose posts carry no date ("What's New" boxes). First run: keep undated items that mention
     the current year / financial year, remember the rest. Later runs: undated items not seen before are new."""

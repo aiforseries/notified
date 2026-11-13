@@ -1,0 +1,45 @@
+name: Source health
+on:
+  schedule:
+    - cron: "30 1 * * *"   # 07:00 IST daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (engine only)
+        run: pip install "curl_cffi>=0.7" "requests>=2.31" "beautifulsoup4>=4.12" "lxml>=5.0" "openpyxl>=3.1"
+      - name: Check every source
+        id: check
+        continue-on-error: true
+        run: python tools/health.py --days 30 --report health.md
+      - name: Open, update or close the health issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Source health: some regulator sources are failing"
+          NUM=$(gh issue list --state open --label source-health --json number --jq '.[0].number')
+          if [ "${{ steps.check.outcome }}" = "failure" ]; then
+            gh label create source-health --color B60205 --description "Daily source check" 2>/dev/null || true
+            if [ -n "$NUM" ]; then
+              gh issue comment "$NUM" --body-file health.md
+            else
+              gh issue create --title "$TITLE" --label source-health --body-file health.md
+            fi
+          elif [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body "All sources are working again. $(head -1 health.md)"
+            gh issue close "$NUM"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: health-report
+          path: health.md

@@ -16,7 +16,7 @@ def _setup_logging():
 
 
 def cli(argv: list[str]) -> int:
-    from .runner import Settings, run
+    from .runner import Settings, run, selected_sources
     from .sources import all_sources
 
     ap = argparse.ArgumentParser(prog="Notified", description="Fetch Indian regulatory updates into an Excel tracker.")
@@ -57,7 +57,7 @@ def cli(argv: list[str]) -> int:
             ap.error(f"no history found in {out} - run once without --digest-only first")
         print(f"Digest: {_digest(out, since, a.digest)}")
         return 0
-    ids = a.sources.split(",") if a.sources else (st.enabled or [s.id for s in srcs if s.enabled_by_default])
+    ids = a.sources.split(",") if a.sources else sorted(selected_sources(st, srcs))
     pdf = [] if (a.pdf or "").lower() == "none" else (a.pdf.split(",") if a.pdf else st.pdf_regulators)
     res = run(since, ids, pdf, out)
     print(f"Tracker: {res.tracker}")

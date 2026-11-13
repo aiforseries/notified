@@ -17,7 +17,7 @@ import webview
 from . import __version__, background, updater
 from .excel import STATUS_CHOICES
 from .paths import resource
-from .runner import TRACKER_NAME, Settings, migrate_tracker, rewrite_tracker, run
+from .runner import TRACKER_NAME, Settings, migrate_tracker, rewrite_tracker, run, selected_sources
 from .sources import all_sources
 from .store import Store
 
@@ -57,11 +57,7 @@ class Api:
         return Path(self._s.output_dir).expanduser()
 
     def _enabled(self) -> set[str]:
-        defaults = {s.id for s in self._sources if s.enabled_by_default}
-        s = self._s
-        if s.enabled:  # saved choice + default-on sources added since then
-            return set(s.enabled) | (defaults - set(s.known_ids or s.enabled))
-        return defaults
+        return selected_sources(self._s, self._sources)
 
     # ---------- start-up ----------
     def bootstrap(self):
@@ -480,6 +476,11 @@ def main(start_hidden: bool = False):
     except Exception:  # noqa: BLE001
         pass
     api = Api()
+    try:  # keep "start with Windows" pointing at this copy (e.g. after downloading an update elsewhere)
+        if background.autostart_enabled():
+            background.set_autostart(True)
+    except Exception:  # noqa: BLE001
+        pass
     bg = {"dark": "#121A21", "light": "#F5F6F2"}.get(api._s.theme, "#F5F6F2")
     win = webview.create_window("Notified", url=str(resource("web/index.html")), js_api=api, width=1240, height=820,
                                 min_size=(980, 640), background_color=bg, hidden=start_hidden, text_select=True)
