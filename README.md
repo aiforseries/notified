@@ -26,7 +26,7 @@ mca.gov.in and incometaxindia.gov.in block automated access, so they are reached
 
 ## Features
 
-- **Results browser** – search titles *and the text inside downloaded PDFs*, filter by regulator / topic, latest run or full history; open the page or PDF, set Status / Owner / Notes.
+- **Register** – every update as a dated register entry: regulator, type, reference number and title, newest first. Search titles, reference numbers *and the text inside downloaded PDFs*; filter by regulator or topic. Open an entry to read it on the regulator's site or open the PDF, and stamp it *To review / Action / Noted / Not relevant* with an owner and notes. Keyboard: `/` search, `↑ ↓` move, `Enter` open, `o` open on site, `Esc` close.
 - **Excel tracker** – `This run` (what you just fetched) and `All updates` (history). Status / Owner / Notes are kept across refreshes, whether you edit them in Excel or in the app.
 - **Digest PDF** – one click builds an A4 summary of the period grouped by topic, with a deadlines & extensions box, ready to send to a partner or client.
 - **Duplicates merged** – the same document seen via the regulator, e-Gazette and PIB shows as one row ("Also at").
@@ -34,7 +34,7 @@ mca.gov.in and incometaxindia.gov.in block automated access, so they are reached
 - **Posted late** – a document that appears after its date was already checked is still caught and flagged.
 - **Runs in the background** – optional daily / weekly checks from the system tray with a Windows notification ("5 new updates: SEBI 3, RBI 2"); can start with Windows.
 - **Update check** – tells you when a newer RegWatch is on GitHub (can be turned off in Settings).
-- Light / dark theme.
+- Light / dark theme (follows Windows if you like). The window uses Windows' built-in Edge WebView2, so nothing extra to install on Windows 10/11.
 
 ## Command line
 

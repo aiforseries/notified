@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RegWatch</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== sidebar ===== -->
+  <aside class="side">
+    <div class="brand">
+      <img src="logo.png" alt="" width="34" height="34">
+      <div>
+        <div class="brand-name">RegWatch</div>
+        <div class="brand-sub">Regulatory register</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Main">
+      <button class="nav-item is-active" data-view="register"><span>Register</span><span class="nav-count" id="navRegister"></span></button>
+      <button class="nav-item" data-view="sources"><span>Sources</span><span class="nav-count" id="navSources"></span></button>
+      <button class="nav-item" data-view="digest"><span>Digest</span></button>
+      <button class="nav-item" data-view="settings"><span>Settings</span></button>
+    </nav>
+
+    <div class="fetch">
+      <div class="fetch-label" id="periodLabel">Look back</div>
+      <div class="period" role="radiogroup" aria-labelledby="periodLabel">
+        <button role="radio" data-days="7">7 days</button>
+        <button role="radio" data-days="30">30 days</button>
+        <button role="radio" data-days="90">90 days</button>
+        <button role="radio" data-days="-1">This FY</button>
+      </div>
+      <label class="from">
+        <span>From</span>
+        <input type="date" id="fromDate">
+      </label>
+      <button class="fetch-btn" id="fetchBtn">
+        <span class="fetch-fill" id="fetchFill"></span>
+        <span class="fetch-text" id="fetchText">Fetch updates</span>
+      </button>
+      <div class="fetch-meta">
+        <span id="fetchMeta"></span>
+        <button class="linkish" id="stopBtn" hidden>Stop</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== main ===== -->
+  <main class="main">
+    <div class="banner" id="updateBanner" hidden>
+      <span id="updateText"></span>
+      <span class="banner-actions">
+        <button class="linkish" id="updateNotes">What's new</button>
+        <button class="btn btn-small" id="updateGet">Download</button>
+      </span>
+    </div>
+
+    <!-- Register -->
+    <section class="view is-active" id="view-register" aria-label="Register">
+      <header class="head">
+        <div>
+          <h1>Register</h1>
+          <p class="head-sub" id="regSub"></p>
+        </div>
+        <div class="head-tools">
+          <button class="btn btn-quiet" id="openTracker" title="Open the Excel tracker">Excel tracker</button>
+          <button class="btn btn-quiet" id="openFolder" title="Open the output folder">Folder</button>
+        </div>
+      </header>
+
+      <div class="filters">
+        <div class="search">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+          <input id="q" type="search" placeholder="Search titles, reference numbers and PDF text" autocomplete="off">
+        </div>
+        <select id="fReg" aria-label="Regulator"><option value="">All regulators</option></select>
+        <select id="fTopic" aria-label="Topic"><option value="">All topics</option></select>
+        <div class="seg" role="radiogroup" aria-label="Which entries">
+          <button role="radio" data-scope="run" aria-checked="true">Latest fetch</button>
+          <button role="radio" data-scope="all" aria-checked="false">Everything</button>
+        </div>
+      </div>
+
+      <div class="list-wrap">
+        <div class="list" id="list" tabindex="0" aria-label="Entries"></div>
+        <div class="empty" id="empty" hidden></div>
+      </div>
+      <p class="foot-note" id="noiseNote" hidden></p>
+    </section>
+
+    <!-- Sources -->
+    <section class="view" id="view-sources" aria-label="Sources">
+      <header class="head">
+        <div>
+          <h1>Sources</h1>
+          <p class="head-sub" id="srcSub"></p>
+        </div>
+        <div class="head-tools">
+          <div class="search search-small">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+            <input id="srcQ" type="search" placeholder="Find a source" autocomplete="off">
+          </div>
+          <button class="btn btn-quiet" id="srcAll">All on</button>
+          <button class="btn btn-quiet" id="srcNone">All off</button>
+        </div>
+      </header>
+      <div class="sources" id="sources"></div>
+    </section>
+
+    <!-- Digest -->
+    <section class="view" id="view-digest" aria-label="Digest">
+      <header class="head">
+        <div>
+          <h1>Digest</h1>
+          <p class="head-sub">A short PDF of the period's updates, grouped by topic, to send to a partner or client.</p>
+        </div>
+      </header>
+      <form class="form" id="digestForm">
+        <div class="row2">
+          <label class="field"><span>From</span><input type="date" id="dFrom" required></label>
+          <label class="field"><span>To</span><input type="date" id="dTo" required></label>
+        </div>
+        <label class="field"><span>Title</span><input id="dTitle" value="Regulatory Update"></label>
+        <label class="field"><span>Subtitle <em>optional</em></span><input id="dSub" placeholder="e.g. Prepared for the audit team"></label>
+        <fieldset class="field">
+          <legend>Regulators</legend>
+          <div class="chips" id="dRegs"></div>
+          <p class="hint">Leave all unselected to include every regulator. Student, exam and internal admin notices are always left out.</p>
+        </fieldset>
+        <div class="form-actions">
+          <button class="btn" type="submit" id="dGo">Create digest PDF</button>
+          <span class="form-status" id="dStatus" role="status"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" id="view-settings" aria-label="Settings">
+      <header class="head"><div><h1>Settings</h1></div></header>
+      <div class="form">
+        <div class="setting">
+          <div class="setting-text"><h3>Output folder</h3><p id="outDir" class="path"></p></div>
+          <div class="setting-ctl"><button class="btn btn-quiet" id="outChange">Change</button><button class="btn btn-quiet" id="outOpen">Open</button></div>
+        </div>
+        <div class="setting">
+          <div class="setting-text"><h3>Appearance</h3></div>
+          <div class="setting-ctl">
+            <div class="seg" role="radiogroup" aria-label="Theme" id="themeSeg">
+              <button role="radio" data-theme="light">Light</button>
+              <button role="radio" data-theme="dark">Dark</button>
+              <button role="radio" data-theme="system">System</button>
+            </div>
+          </div>
+        </div>
+        <div class="setting">
+          <div class="setting-text"><h3>Automatic checks</h3><p id="schedText"></p></div>
+          <div class="setting-ctl col">
+            <div class="seg" role="radiogroup" aria-label="Automatic checks" id="autoSeg">
+              <button role="radio" data-auto="off">Off</button>
+              <button role="radio" data-auto="daily">Daily</button>
+              <button role="radio" data-auto="weekly">Weekly</button>
+            </div>
+            <div class="inline">
+              <select id="autoDay" aria-label="Day"></select>
+              <select id="autoTime" aria-label="Time"></select>
+            </div>
+          </div>
+        </div>
+        <label class="setting switch-row">
+          <div class="setting-text"><h3>Keep running in the tray</h3><p>Closing the window leaves RegWatch in the system tray so scheduled checks still run.</p></div>
+          <input type="checkbox" class="switch" data-setting="trayOnClose">
+        </label>
+        <label class="setting switch-row">
+          <div class="setting-text"><h3>Start with Windows</h3><p>Opens quietly in the tray when you sign in.</p></div>
+          <input type="checkbox" class="switch" data-setting="startWithWindows">
+        </label>
+        <label class="setting switch-row">
+          <div class="setting-text"><h3>Notifications</h3><p>Show a Windows notification when a scheduled check finds new entries.</p></div>
+          <input type="checkbox" class="switch" data-setting="notify">
+        </label>
+        <label class="setting switch-row">
+          <div class="setting-text"><h3>Check for new versions</h3><p>Looks at RegWatch's GitHub releases at start-up. Nothing about you is sent.</p></div>
+          <input type="checkbox" class="switch" data-setting="checkUpdates">
+        </label>
+        <p class="about" id="about"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== detail drawer ===== -->
+  <aside class="drawer" id="drawer" aria-label="Entry details" aria-hidden="true">
+    <div class="drawer-inner">
+      <button class="drawer-close" id="drawerClose" aria-label="Close details">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>
+      </button>
+      <div class="d-meta" id="dMeta"></div>
+      <h2 class="d-title" id="dTitleTxt"></h2>
+      <p class="d-ref" id="dRef"></p>
+      <div class="d-actions">
+        <button class="btn" id="dOpen">Open on regulator site</button>
+        <button class="btn btn-quiet" id="dPdf">Open PDF</button>
+        <button class="btn btn-quiet" id="dCopy">Copy reference</button>
+      </div>
+      <div class="d-snip" id="dSnip" hidden></div>
+
+      <div class="d-block">
+        <div class="d-label" id="stLabel">Mark as</div>
+        <div class="stamps" role="radiogroup" aria-labelledby="stLabel" id="stamps"></div>
+      </div>
+      <label class="d-block field"><span>Owner</span><input id="dOwner" placeholder="Who is looking at this?"></label>
+      <label class="d-block field"><span>Notes</span><textarea id="dNotes" rows="4" placeholder="Impact, clients affected, next step…"></textarea></label>
+      <p class="saved" id="dSaved" role="status"></p>
+
+      <div class="d-block" id="dTagsBlock">
+        <div class="d-label">Topics</div>
+        <div class="tags" id="dTags"></div>
+      </div>
+      <div class="d-block" id="dAlsoBlock" hidden>
+        <div class="d-label">Also published by</div>
+        <ul class="also" id="dAlso"></ul>
+      </div>
+      <p class="d-source" id="dSource"></p>
+    </div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -9,3 +9,4 @@ history.db
 /PDFs/
 /tag_rules.json
 RegWatch_Tracker*.xlsx
+dist_web/

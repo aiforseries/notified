@@ -100,7 +100,7 @@ def main() -> int:
     args = sys.argv[1:]
     if args and args != ["--tray"]:
         return cli(args)
-    from .gui import main as gui_main
+    from .webapp import main as gui_main
     gui_main(start_hidden=args == ["--tray"])  # --tray: launched at Windows start-up, stay in the tray
     return 0
 
