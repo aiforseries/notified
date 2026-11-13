@@ -12,3 +12,4 @@ RegWatch_Tracker*.xlsx
 dist_web/
 /*.pdf
 /.tag_rules.shipped
+Notified_Tracker*.xlsx

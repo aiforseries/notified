@@ -1,4 +1,4 @@
-/* RegWatch UI. Talks to Python through window.pywebview.api; Python pushes events via RW.emit(). */
+/* Notified UI. Talks to Python through window.pywebview.api; Python pushes events via RW.emit(). */
 "use strict";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -359,8 +359,8 @@ function renderSettings() {
   $("#autoTime").hidden = s.autoCheck === "off";
   $("#schedText").textContent = S.boot.schedule;
   $$("[data-setting]").forEach((el) => (el.checked = !!s[el.dataset.setting]));
-  $("#about").innerHTML = `RegWatch ${esc(S.boot.version)}. Free and open source under the MIT licence. Reads public regulator websites; titles and dates are as published, so rely on the official document before acting. <button class="linkish" id="ghLink">Source code and releases</button>`;
-  $("#ghLink").onclick = () => S.api.open_url("https://github.com/aiforseries/regwatch");
+  $("#about").innerHTML = `Notified ${esc(S.boot.version)}. Free and open source under the MIT licence. Reads public regulator websites; titles and dates are as published, so rely on the official document before acting. <button class="linkish" id="ghLink">Source code and releases</button>`;
+  $("#ghLink").onclick = () => S.api.open_url("https://github.com/aiforseries/notified");
 }
 async function setSetting(key, value) {
   S.boot.settings[key] = value;
@@ -456,14 +456,14 @@ function bind() {
 async function checkUpdate() {
   const u = await S.api.check_update();
   if (!u) return;
-  $("#updateText").textContent = `RegWatch ${u.version} is available. You have ${S.boot.version}.`;
+  $("#updateText").textContent = `Notified ${u.version} is available. You have ${S.boot.version}.`;
   $("#updateBanner").hidden = false;
   $("#updateNotes").onclick = () => S.api.open_url(u.page);
   $("#updateGet").hidden = !u.canDownload;
   $("#updateGet").onclick = async () => {
     $("#updateGet").disabled = true; $("#updateGet").textContent = "Downloading…";
     const r = await S.api.download_update();
-    $("#updateText").textContent = r.ok ? "Downloaded to your Downloads folder. Close RegWatch and run the new file." : `Download failed: ${r.error}`;
+    $("#updateText").textContent = r.ok ? "Downloaded to your Downloads folder. Close Notified and run the new file." : `Download failed: ${r.error}`;
     $("#updateGet").hidden = r.ok; $("#updateGet").disabled = false; $("#updateGet").textContent = "Download";
   };
 }

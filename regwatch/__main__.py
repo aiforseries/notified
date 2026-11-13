@@ -19,7 +19,7 @@ def cli(argv: list[str]) -> int:
     from .runner import Settings, run
     from .sources import all_sources
 
-    ap = argparse.ArgumentParser(prog="RegWatch", description="Fetch Indian regulatory updates into an Excel tracker.")
+    ap = argparse.ArgumentParser(prog="Notified", description="Fetch Indian regulatory updates into an Excel tracker.")
     ap.add_argument("--cli", action="store_true", help="run without the window")
     ap.add_argument("--days", type=int, help="look back N days (default: last setting)")
     ap.add_argument("--since", help="start date dd-mm-yyyy (overrides --days)")

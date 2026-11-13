@@ -1,5 +1,5 @@
 {
-  "_help": "Topic tags applied by keyword. Edit freely: each tag maps to a list of keywords/regex (case-insensitive, matched as whole words). Your copy lives in the RegWatch output folder and is never overwritten by updates.",
+  "_help": "Topic tags applied by keyword. Edit freely: each tag maps to a list of keywords/regex (case-insensitive, matched as whole words). Your copy lives in the Notified output folder and is never overwritten by updates.",
   "Audit & Assurance": [
     "standard on auditing",
     "standards on auditing",

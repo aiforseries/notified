@@ -18,7 +18,19 @@ from .store import Store
 from .tagger import Tagger, ensure_rules
 
 log = logging.getLogger("regwatch")
-TRACKER_NAME = "RegWatch_Tracker.xlsx"
+TRACKER_NAME = "Notified_Tracker.xlsx"
+LEGACY_TRACKER = "RegWatch_Tracker.xlsx"
+
+
+def migrate_tracker(output_dir: Path) -> None:
+    """Carry an existing RegWatch tracker (with the team's Status/Owner/Notes) over to the new name."""
+    old, new = output_dir / LEGACY_TRACKER, output_dir / TRACKER_NAME
+    if old.exists() and not new.exists():
+        try:
+            import shutil
+            shutil.copy2(old, new)
+        except OSError:
+            pass
 # Regulators often post documents days or weeks after their issue date. Each source looks back this many
 # extra days; an older-dated item is kept only if that source has run before and has never seen it.
 LATE_BUFFER_DAYS = 45
@@ -70,7 +82,7 @@ class Settings:
     auto_weekday: int = 0             # 0 = Monday
     tray_on_close: bool = False       # keep running in the tray when the window is closed
     notify: bool = True               # Windows notification after a scheduled check
-    check_updates: bool = True        # look for a newer RegWatch on GitHub at start-up
+    check_updates: bool = True        # look for a newer Notified on GitHub at start-up
     last_auto_run: str = ""           # ISO datetime of the last scheduled check                                  # light | dark | system
 
     @classmethod
@@ -98,6 +110,7 @@ class RunResult:
 def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_dir: Path,
         progress: Callable[[str], None] = print, cancel: Callable[[], bool] = lambda: False) -> RunResult:
     output_dir.mkdir(parents=True, exist_ok=True)
+    migrate_tracker(output_dir)
     tagger = Tagger(ensure_rules(output_dir))
     sources = {s.id: s for s in all_sources()}
     chosen = [sources[i] for i in source_ids if i in sources]
@@ -207,6 +220,7 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
 def rewrite_tracker(output_dir: Path) -> Path | None:
     """Re-write the tracker without fetching, when Status/Owner/Notes were edited in the app after the
     tracker was last saved. Returns the path written, or None if nothing needed doing."""
+    migrate_tracker(output_dir)
     tracker = output_dir / TRACKER_NAME
     db = output_dir / "history.db"
     if not db.exists():

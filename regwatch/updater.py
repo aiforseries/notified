@@ -1,4 +1,4 @@
-"""Checks GitHub Releases for a newer RegWatch and downloads it on request.
+"""Checks GitHub Releases for a newer Notified and downloads it on request.
 
 Privacy: one anonymous GET to the public GitHub API; nothing about the user is sent.
 Can be turned off in the app (Settings.check_updates)."""
@@ -12,7 +12,7 @@ import requests
 
 from . import __version__
 
-REPO = "aiforseries/regwatch"
+REPO = "aiforseries/notified"
 API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 
@@ -34,7 +34,7 @@ def latest(timeout: int = 8) -> Release | None:
     """Newer release than the running one, or None (also None on any network error)."""
     try:
         r = requests.get(API, timeout=timeout, headers={"Accept": "application/vnd.github+json",
-                                                         "User-Agent": f"RegWatch/{__version__}"})
+                                                         "User-Agent": f"Notified/{__version__}"})
         if r.status_code != 200:
             return None
         d = r.json()
@@ -49,9 +49,9 @@ def latest(timeout: int = 8) -> Release | None:
 
 
 def download(rel: Release, folder: Path, progress=None) -> Path:
-    """Download the new exe as RegWatch-<version>.exe into `folder` (the user's Downloads by default)."""
+    """Download the new exe as Notified-<version>.exe into `folder` (the user's Downloads by default)."""
     folder.mkdir(parents=True, exist_ok=True)
-    dest = folder / f"RegWatch-{rel.version}.exe"
+    dest = folder / f"Notified-{rel.version}.exe"
     tmp = dest.with_suffix(".part")
     with requests.get(rel.exe_url, stream=True, timeout=60) as r:
         r.raise_for_status()

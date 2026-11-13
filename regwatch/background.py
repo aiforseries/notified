@@ -9,7 +9,8 @@ from .paths import resource
 
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-RUN_NAME = "RegWatch"
+RUN_NAME = "Notified"
+LEGACY_RUN_NAME = "RegWatch"
 
 
 # ---------- schedule ----------
@@ -55,6 +56,10 @@ def launch_command() -> str:
 def set_autostart(enabled: bool) -> None:
     import winreg
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
+        try:
+            winreg.DeleteValue(k, LEGACY_RUN_NAME)  # entry written by RegWatch (pre-0.4)
+        except FileNotFoundError:
+            pass
         if enabled:
             winreg.SetValueEx(k, RUN_NAME, 0, winreg.REG_SZ, launch_command())
         else:
@@ -68,8 +73,13 @@ def autostart_enabled() -> bool:
     import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
-            winreg.QueryValueEx(k, RUN_NAME)
-            return True
+            for name in (RUN_NAME, LEGACY_RUN_NAME):
+                try:
+                    winreg.QueryValueEx(k, name)
+                    return True
+                except OSError:
+                    continue
+            return False
     except OSError:
         return False
 
@@ -86,13 +96,13 @@ class Tray:
         self._post = post
         img = Image.open(resource("assets/regwatch.png"))
         menu = pystray.Menu(
-            pystray.MenuItem("Open RegWatch", lambda: post("show"), default=True),
+            pystray.MenuItem("Open Notified", lambda: post("show"), default=True),
             pystray.MenuItem("Check now", lambda: post("check")),
             pystray.MenuItem(lambda item: status(), None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Quit", lambda: post("quit")),
         )
-        self.icon = pystray.Icon("RegWatch", img, "RegWatch", menu)
+        self.icon = pystray.Icon("Notified", img, "Notified", menu)
         self.icon.run_detached()
 
     def notify(self, title: str, msg: str) -> None:

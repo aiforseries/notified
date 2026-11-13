@@ -1,6 +1,6 @@
-# Builds dist\RegWatch.exe (single file, no Python needed on the target PC; uses Windows' built-in WebView2).
+# Builds dist\Notified.exe (single file, no Python needed on the target PC; uses Windows' built-in WebView2).
 python -m pip install -r requirements.txt pyinstaller
-python -m PyInstaller --noconfirm --onefile --windowed --name RegWatch `
+python -m PyInstaller --noconfirm --onefile --windowed --name Notified `
   --icon regwatch/assets/regwatch.ico `
   --add-data "regwatch/tag_rules.json;regwatch" `
   --add-data "regwatch/assets;regwatch/assets" `

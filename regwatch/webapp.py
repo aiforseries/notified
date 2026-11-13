@@ -1,4 +1,4 @@
-"""RegWatch desktop window: HTML/CSS UI in Windows' Edge WebView2 (pywebview), backed by the Python engine.
+"""Notified desktop window: HTML/CSS UI in Windows' Edge WebView2 (pywebview), backed by the Python engine.
 
 JS calls `window.pywebview.api.<method>()`; Python pushes events with `RW.emit(name, payload)`."""
 from __future__ import annotations
@@ -17,7 +17,7 @@ import webview
 from . import __version__, background, updater
 from .excel import STATUS_CHOICES
 from .paths import resource
-from .runner import TRACKER_NAME, Settings, rewrite_tracker, run
+from .runner import TRACKER_NAME, Settings, migrate_tracker, rewrite_tracker, run
 from .sources import all_sources
 from .store import Store
 
@@ -197,7 +197,7 @@ class Api:
                     if self._s.notify and res.new_count:
                         self._ensure_tray()
                         if self._tray:
-                            self._tray.notify("RegWatch", payload["summary"])
+                            self._tray.notify("Notified", payload["summary"])
                 self._emit("fetch:done", payload)
             except Exception as e:  # noqa: BLE001
                 log.exception("fetch failed")
@@ -233,6 +233,7 @@ class Api:
         db = self._out() / "history.db"
         if not db.exists():
             return {"rows": [], "regulators": [], "topics": [], "hasHistory": False, "lastRunCount": 0}
+        migrate_tracker(self._out())
         st = Store(db)
         try:
             rows = st.all_rows()
@@ -352,7 +353,7 @@ class Api:
         if not db.exists():
             return {"ok": False, "error": "Fetch updates first, then create a digest."}
         since, until = date.fromisoformat(since_iso), date.fromisoformat(until_iso)
-        name = f"RegWatch Digest {since:%d %b} - {until:%d %b %Y}.pdf"
+        name = f"Notified Digest {since:%d %b} - {until:%d %b %Y}.pdf"
         res = self._window.create_file_dialog(webview.FileDialog.SAVE, directory=str(self._out()), save_filename=name,
                                              file_types=("PDF (*.pdf)",))
         if not res:
@@ -456,7 +457,7 @@ class Api:
             if self._tray:
                 self._window.hide()
                 if not getattr(self, "_hinted", False):
-                    self._tray.notify("RegWatch is still running", "It keeps checking on schedule. Right-click the tray icon to quit.")
+                    self._tray.notify("Notified is still running", "It keeps checking on schedule. Right-click the tray icon to quit.")
                     self._hinted = True
                 return False  # cancel the close
         self._quitting = True
@@ -473,14 +474,14 @@ class Api:
 
 
 def main(start_hidden: bool = False):
-    try:  # own taskbar identity so Windows shows RegWatch's icon
+    try:  # own taskbar identity so Windows shows Notified's icon
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("RegWatch.Desktop")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Notified.Desktop")
     except Exception:  # noqa: BLE001
         pass
     api = Api()
     bg = {"dark": "#121A21", "light": "#F5F6F2"}.get(api._s.theme, "#F5F6F2")
-    win = webview.create_window("RegWatch", url=str(resource("web/index.html")), js_api=api, width=1240, height=820,
+    win = webview.create_window("Notified", url=str(resource("web/index.html")), js_api=api, width=1240, height=820,
                                 min_size=(980, 640), background_color=bg, hidden=start_hidden, text_select=True)
     api._window = win
     win.events.closing += api.on_closing

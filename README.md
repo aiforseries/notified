@@ -1,8 +1,8 @@
-# RegWatch
+# Notified
 
 Free, open-source Windows app that pulls the latest Indian regulatory updates relevant to chartered accountants into one place: an in-app results browser, an Excel tracker, PDFs, full-text search and a client-ready digest.
 
-No account, no API keys, no subscription. Download `RegWatch.exe` from [Releases](https://github.com/aiforseries/regwatch/releases/latest), double-click, pick a period, click **Fetch updates**.
+No account, no API keys, no subscription. Download `Notified.exe` from [Releases](https://github.com/aiforseries/notified/releases/latest), double-click, pick a period, click **Fetch updates**.
 
 ## What it covers (69 sources)
 
@@ -33,16 +33,16 @@ mca.gov.in and incometaxindia.gov.in block automated access, so they are reached
 - **Topic tags** – keyword rules (Audit, GST, Labour & Payroll, Deadline / Extension, Posted late, …); student/exam and internal admin notices are tagged so they can be hidden. Edit `tag_rules.json` in the output folder to tune.
 - **Posted late** – a document that appears after its date was already checked is still caught and flagged.
 - **Runs in the background** – optional daily / weekly checks from the system tray with a Windows notification ("5 new updates: SEBI 3, RBI 2"); can start with Windows.
-- **Update check** – tells you when a newer RegWatch is on GitHub (can be turned off in Settings).
+- **Update check** – tells you when a newer Notified is on GitHub (can be turned off in Settings).
 - Light / dark theme (follows Windows if you like). The window uses Windows' built-in Edge WebView2, so nothing extra to install on Windows 10/11.
 
 ## Command line
 
 ```
-RegWatch.exe --cli --days 7                    # fetch with the sources/PDF choices saved in the app
-RegWatch.exe --cli --since 01-04-2026 --pdf SEBI,RBI --digest digest.pdf
-RegWatch.exe --search "related party"          # search history + PDF text
-RegWatch.exe --list                            # list source ids
+Notified.exe --cli --days 7                    # fetch with the sources/PDF choices saved in the app
+Notified.exe --cli --since 01-04-2026 --pdf SEBI,RBI --digest digest.pdf
+Notified.exe --search "related party"          # search history + PDF text
+Notified.exe --list                            # list source ids
 ```
 
 ## Caveats
@@ -55,7 +55,7 @@ RegWatch.exe --list                            # list source ids
 
 ```powershell
 python -m venv .venv; .venv\Scripts\activate
-./build.ps1                                # -> dist\RegWatch.exe
+./build.ps1                                # -> dist\Notified.exe
 python -m regwatch                         # run the app from source
 python -m regwatch.probe sebi --days 30    # live-test adapters
 python tests/test_dedupe.py

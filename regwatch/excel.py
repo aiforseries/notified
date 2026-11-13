@@ -179,7 +179,7 @@ def _rest(wb, run_log):
 
     about = wb.create_sheet("About")
     for line in [
-        "RegWatch - free tracker of Indian regulatory updates (open source).",
+        "Notified - free tracker of Indian regulatory updates (open source).",
         f"'{RUN_SHEET}': only the sources and period you picked in the latest run.",
         f"'{HISTORY_SHEET}': everything fetched so far, across all runs.",
         "Yellow rows / 'NEW' = first seen in the latest run. 'Posted late' = appeared after its date was already covered.",

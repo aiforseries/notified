@@ -28,7 +28,7 @@ PORTAL = "https://www.incometax.gov.in"
 LATEST = PORTAL + "/iec/foportal/latest-news"
 MAX_PAGES = 15
 _CACHE: dict = {}
-_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RegWatch",
+_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Notified",
        "Accept": "text/html,application/xhtml+xml"}
 
 _NUM = r"(\d{1,4})\s*(?:/|of)\s*(\d{4})"

@@ -32,7 +32,7 @@ DEADLINE_TAG = "Deadline / Extension"
 FLAG_TAGS = {DEADLINE_TAG, "Posted late"}
 DEFAULT_EXCLUDE = ("Students / Exams", "Internal / Admin", "Enforcement news", "Events & CPE")
 OTHER = "Other updates"
-DISCLAIMER = "Compiled from official regulator websites by RegWatch. Refer to the official document before acting."
+DISCLAIMER = "Compiled from official regulator websites by Notified. Refer to the official document before acting."
 ACTION = "Relevant - action needed"
 
 # print palette: the app's ledger ink on white paper
@@ -204,7 +204,7 @@ class _Doc(FPDF):
         self.use("sans", 7.5, INK3)
         self.set_xy(self.l_margin, 10)
         self.cell(self.epw / 2, 4, self.safe(self.running_head))
-        self.cell(self.epw / 2, 4, "RegWatch", align="R")
+        self.cell(self.epw / 2, 4, "Notified", align="R")
         self.hline(15.2, RULE)
 
     def footer(self):
@@ -291,8 +291,8 @@ def _render(c: dict, toc_pages: dict | None) -> _Doc:
     pdf = _Doc(f"{c['title']}   {period}")
     pdf.section_pages = {}
     pdf.set_title(f"{c['title']} – {period}")
-    pdf.set_author("RegWatch")
-    pdf.set_creator("RegWatch")
+    pdf.set_author("Notified")
+    pdf.set_creator("Notified")
     pdf.alias_nb_pages()
     pdf.add_page()
     L, W = pdf.l_margin, pdf.epw
@@ -309,7 +309,7 @@ def _render(c: dict, toc_pages: dict | None) -> _Doc:
         pdf.image(str(logo), x=L, y=16, w=7, h=7)
     pdf.set_xy(L + 9, 16.6)
     pdf.use("sb", 9.5, INK)
-    pdf.cell(40, 6, "RegWatch")
+    pdf.cell(40, 6, "Notified")
     pdf.set_xy(L, 16.6)
     pdf.use("sans", 8, INK3)
     pdf.cell(W, 6, f"Generated {long_date(date.today())}", align="R")

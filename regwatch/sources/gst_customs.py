@@ -174,7 +174,7 @@ class CbicCustomsInstructions(_CbicFeed):
 
 GSTN = "https://www.gst.gov.in"
 _HREF_RX = re.compile(r'href\s*=\s*["\']([^"\']+)["\']', re.I)
-_GSTN_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RegWatch",
+_GSTN_UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Notified",
             "Accept": "application/json, text/plain, */*"}
 
 
