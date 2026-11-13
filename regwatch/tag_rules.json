@@ -37,7 +37,7 @@
     "annual return",
     "AGM",
     "beneficial owner",
-    "charge",
+    "(?:creation|satisfaction|registration|modification) of charges?",
     "share capital",
     "strike off",
     "company law",
@@ -70,7 +70,7 @@
     "compensation cess",
     "GSTR",
     "input tax credit",
-    "ITC",
+    "ITC(?!\\s*\\(HS)",
     "e-invoice",
     "e-way bill",
     "IMS",
@@ -118,7 +118,7 @@
     "KYC",
     "PMLA",
     "anti-money laundering",
-    "bank",
+    "banks?",
     "payment",
     "credit",
     "repo"
@@ -255,6 +255,54 @@
     "Ayush",
     "travel by air",
     "राजभाषा",
-    "[ऀ-ॿ]{3,}.*[ऀ-ॿ]{3,}"
+    "[ऀ-ॿ]{3,}.*[ऀ-ॿ]{3,}",
+    "Special Campaign",
+    "Swachh\\w*",
+    "Vigilance Awareness",
+    "Hindi Pakhwada",
+    "Rashtriya Ekta",
+    "Yoga Day",
+    "Foundation Day",
+    "Pendency"
+  ],
+  "IFSC / GIFT City": [
+    "IFSC",
+    "IFSCA",
+    "GIFT City",
+    "International Financial Services Cent"
+  ],
+  "Insurance & Pension": [
+    "insurance",
+    "insurers?",
+    "IRDAI",
+    "reinsurance",
+    "pension",
+    "NPS",
+    "PFRDA",
+    "annuit\\w*",
+    "Atal Pension"
+  ],
+  "Competition Law": [
+    "competition",
+    "CCI",
+    "combinations?",
+    "anti-competitive",
+    "abuse of dominan\\w*"
+  ],
+  "Enforcement news": [
+    "seiz\\w*",
+    "smuggl\\w*",
+    "arrest\\w*",
+    "busts?",
+    "cocaine",
+    "heroin",
+    "narcotic\\w*",
+    "contraband",
+    "hydroponic",
+    "DRI",
+    "foils?",
+    "drugs? worth",
+    "gold worth",
+    "trafficking"
   ]
 }

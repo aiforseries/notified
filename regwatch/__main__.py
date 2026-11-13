@@ -69,9 +69,13 @@ def cli(argv: list[str]) -> int:
 def _digest(out: Path, since: date, path: str) -> Path:
     from .digest import build_digest
     from .store import Store
+    from .runner import TRACKER_NAME
+    from .tagger import ensure_rules
+    from .usercols import merged
     store = Store(out / "history.db")
     try:
-        return build_digest(store.all_rows(), since, date.today(), Path(path))
+        return build_digest(store.all_rows(), since, date.today(), Path(path),
+                            user_cols=merged(store, out / TRACKER_NAME), rules_file=ensure_rules(out))
     finally:
         store.close()
 

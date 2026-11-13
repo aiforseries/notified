@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -13,10 +12,10 @@ from typing import Callable
 
 from . import pdfs
 from .excel import write_tracker
-from .paths import config_dir, default_output_dir, resource
+from .paths import config_dir, default_output_dir
 from .sources import all_sources
 from .store import Store
-from .tagger import Tagger
+from .tagger import Tagger, ensure_rules
 
 log = logging.getLogger("regwatch")
 TRACKER_NAME = "RegWatch_Tracker.xlsx"
@@ -27,7 +26,8 @@ LATE_TAG = "Posted late"
 
 
 def clean_text(s: str) -> str:
-    """Some sites emit U+FFFD where a curly quote or dash was. Spaced -> dash, otherwise -> quote."""
+    """Tidy a title: strip a stray ".pdf" file suffix; U+FFFD (a lost curly quote or dash) -> dash or quote."""
+    s = re.sub(r"\.pdf\s*$", "", s, flags=re.I).strip()
     if "�" not in s:
         return s
     s = re.sub(r"\s�\s", " - ", s)
@@ -75,10 +75,7 @@ class RunResult:
 def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_dir: Path,
         progress: Callable[[str], None] = print, cancel: Callable[[], bool] = lambda: False) -> RunResult:
     output_dir.mkdir(parents=True, exist_ok=True)
-    rules = output_dir / "tag_rules.json"
-    if not rules.exists():
-        shutil.copy(resource("tag_rules.json"), rules)
-    tagger = Tagger(rules)
+    tagger = Tagger(ensure_rules(output_dir))
     sources = {s.id: s for s in all_sources()}
     chosen = [sources[i] for i in source_ids if i in sources]
     run_ts = datetime.now().isoformat(timespec="seconds")

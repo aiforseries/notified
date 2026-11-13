@@ -23,17 +23,8 @@ from .store import Store
 
 log = logging.getLogger("regwatch.web")
 
-# muted "file cover" colours per regulator (light, dark)
-FILE_TABS = {
-    "ICAI": ("#2F6E8E", "#6FB3D6"), "NFRA": ("#3B5B8C", "#8AA9DA"), "MCA": ("#8C5A2B", "#D9A46F"),
-    "CBDT": ("#A0522D", "#E39B72"), "CBIC": ("#6B7A2A", "#B5C46A"), "GSTN": ("#58702F", "#A6C27A"),
-    "DGFT": ("#7A6A2A", "#CDBB6E"), "SEBI": ("#7B3F6E", "#D08ABF"), "RBI": ("#2E6B4F", "#73C29C"),
-    "MoLE": ("#9A4A3A", "#E2907F"), "EPFO": ("#9A6A3A", "#E2B07F"), "ESIC": ("#8A5A5A", "#D5A0A0"),
-    "MeitY": ("#4B4F9A", "#9EA2E8"), "MoF": ("#6A6A6A", "#ABABAB"), "IBBI": ("#5E4B8A", "#AE9BDB"),
-    "IFSCA": ("#2E7A7A", "#74C6C6"), "ICSI": ("#7A3B3B", "#D58888"), "CCI": ("#4F6A86", "#9CB6D2"),
-    "IRDAI": ("#3F7A5A", "#86C9A4"), "PFRDA": ("#7A5A2E", "#CFA975"),
-}
-NOISE = ("Students / Exams", "Internal / Admin")
+from .palette import FILE_TABS  # noqa: E402
+from .tagger import NOISE_TAGS as NOISE  # noqa: E402
 
 
 def _fy_start(t: date) -> date:
@@ -250,6 +241,8 @@ class Api:
             user = merged(st, self._out() / TRACKER_NAME)
         finally:
             st.close()
+        from .tagger import Tagger, ensure_rules
+        Tagger(ensure_rules(self._out())).retag(rows)  # current rules, also for items fetched earlier
         try:
             from .dedupe import merge_duplicates
             rows = merge_duplicates(rows)
@@ -369,18 +362,17 @@ class Api:
             path = path.with_suffix(".pdf")
         try:
             from .digest import build_digest
+            from .tagger import ensure_rules
+            from .usercols import merged
             st = Store(db)
             try:
                 rows = st.all_rows()
+                user_cols = merged(st, self._out() / TRACKER_NAME)
             finally:
                 st.close()
-            try:
-                from .dedupe import merge_duplicates
-                rows = merge_duplicates(rows)
-            except ImportError:
-                pass
             out = build_digest(rows, since, until, path, title=title or "Regulatory Update", subtitle=subtitle or "",
-                               include_regulators=regulators or None)
+                               include_regulators=regulators or None, user_cols=user_cols,
+                               rules_file=ensure_rules(self._out()))
             os.startfile(str(out))  # noqa: S606 - file we just wrote
             return {"ok": True, "path": str(out)}
         except Exception as e:  # noqa: BLE001
