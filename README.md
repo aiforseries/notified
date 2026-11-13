@@ -49,6 +49,7 @@ Notified.exe --list                            # list source ids
 ## Caveats
 
 - Titles, dates and links are as published by each regulator; always rely on the official document.
+- A daily GitHub check (`Source health` workflow, `tools/health.py`) tests every source and opens an issue when one breaks. CBIC, DGFT, EPFO and ESIC only answer Indian networks, so the cloud check skips them; run `python tools/health.py` locally to include them.
 - Government sites change layouts. A broken source shows as ERROR on the tracker's *Last run* sheet (with a link to check manually) and never stops the others.
 - PDF search needs the PDFs downloaded (tick "Save PDFs" for a regulator). Scanned PDFs and Hindi text aren't searchable.
 
