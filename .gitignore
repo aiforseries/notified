@@ -13,3 +13,4 @@ dist_web/
 /*.pdf
 /.tag_rules.shipped
 Notified_Tracker*.xlsx
+dist_notified/

@@ -297,7 +297,10 @@
     "awards? for excellence",
     "annual report for year",
     "draft panel for appointment",
-    "empanelment of"
+    "empanelment of",
+    "new branch of",
+    "branch of ICAI",
+    "opening of (?:new )?branch"
   ],
   "IFSC / GIFT City": [
     "IFSC",
