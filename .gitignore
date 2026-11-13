@@ -1,16 +1,19 @@
+# Python / tooling
 .venv/
 __pycache__/
-build/
-dist/
-*.spec
-*.xlsx
-history.db
+.ruff_cache/
 .claude/
+
+# PyInstaller
+build/
+dist*/
+*.spec
+
+# App output, if the output folder is ever pointed at the repo
+*.xlsx
+*.pdf
+history.db
 /PDFs/
 /tag_rules.json
-RegWatch_Tracker*.xlsx
-dist_web/
-/*.pdf
 /.tag_rules.shipped
-Notified_Tracker*.xlsx
-dist_notified/
+health.md

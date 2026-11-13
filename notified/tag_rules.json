@@ -60,7 +60,16 @@
     "model risk",
     "third[- ]party risk",
     "segregation of duties",
-    "maker[- ]checker"
+    "maker[- ]checker",
+    "cyber[- ]?attacks?",
+    "threat actors?",
+    "ransomware",
+    "phishing",
+    "malware",
+    "vulnerabilit(?:y|ies)",
+    "cyber defen[cs]e",
+    "security audit\\w*",
+    "incident response"
   ],
   "Accounting Standards / Ind AS": [
     "Ind AS",
@@ -297,7 +306,6 @@
     "APARs?",
     "posts? (?:in|of)",
     "land suitability",
-    "infrastructure",
     "training manual",
     "user manual",
     "work allocation",
@@ -341,7 +349,8 @@
     "empanelment of",
     "new branch of",
     "branch of ICAI",
-    "opening of (?:new )?branch"
+    "opening of (?:new )?branch",
+    "construction of (?:ESIC|hospital|dispensary|building)"
   ],
   "IFSC / GIFT City": [
     "IFSC",

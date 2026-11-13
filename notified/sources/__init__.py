@@ -25,6 +25,7 @@ MODULES = [
     "ifsca",
     "icsi",
     "cci",
+    "certin",
 ]
 
 log = logging.getLogger(__name__)
