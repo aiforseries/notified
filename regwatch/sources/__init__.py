@@ -7,7 +7,25 @@ import logging
 
 from .base import Source
 
-MODULES = ["icai_audit", "mca", "direct_tax", "gst_customs", "sebi", "rbi", "labour", "data_protection", "pib", "egazette"]
+MODULES = [
+    "icai_audit",
+    "mca",
+    "direct_tax",
+    "gst_customs",
+    "sebi",
+    "rbi",
+    "labour",
+    "data_protection",
+    "pib",
+    "egazette",
+    "dgft",
+    "irdai",
+    "pfrda",
+    "ibbi",
+    "ifsca",
+    "icsi",
+    "cci",
+]
 
 log = logging.getLogger(__name__)
 

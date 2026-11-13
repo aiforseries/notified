@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS items (
   doc_type TEXT, ref_no TEXT, pdf_url TEXT, tags TEXT, first_seen TEXT, local_pdf TEXT DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS coverage (source_id TEXT PRIMARY KEY, covered_from TEXT);
+CREATE TABLE IF NOT EXISTS user_meta (uid TEXT PRIMARY KEY, status TEXT DEFAULT '', owner TEXT DEFAULT '',
+  notes TEXT DEFAULT '', updated TEXT);
+CREATE TABLE IF NOT EXISTS last_run (uid TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 """
 
 
@@ -54,6 +58,37 @@ class Store:
         cur = self.covered_from(source_id)
         val = min(cur, since) if cur else since
         self.db.execute("INSERT OR REPLACE INTO coverage VALUES (?,?)", (source_id, val.isoformat()))
+        self.db.commit()
+
+    # ----- what the latest run fetched -----
+    def set_last_run(self, uids: set[str], since: date, run_ts: str):
+        self.db.execute("DELETE FROM last_run")
+        self.db.executemany("INSERT OR IGNORE INTO last_run VALUES (?)", [(u,) for u in uids])
+        self.db.executemany("INSERT OR REPLACE INTO kv VALUES (?,?)", [("last_since", since.isoformat()), ("last_run", run_ts)])
+        self.db.commit()
+
+    def last_run(self) -> tuple[set[str], date | None, str]:
+        uids = {r[0] for r in self.db.execute("SELECT uid FROM last_run")}
+        kv = dict(self.db.execute("SELECT k, v FROM kv").fetchall())
+        since = date.fromisoformat(kv["last_since"]) if kv.get("last_since") else None
+        return uids, since, kv.get("last_run", "")
+
+    def kv_get(self, k: str, default: str = "") -> str:
+        r = self.db.execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
+        return r[0] if r else default
+
+    def kv_set(self, k: str, v: str):
+        self.db.execute("INSERT OR REPLACE INTO kv VALUES (?,?)", (k, v))
+        self.db.commit()
+
+    # ----- Status / Owner / Notes edited inside the app -----
+    def user_meta(self) -> dict[str, dict]:
+        cur = self.db.execute("SELECT uid, status, owner, notes, updated FROM user_meta")
+        return {u: {"Status": s or "", "Owner": o or "", "Notes": n or "", "updated": t} for u, s, o, n, t in cur}
+
+    def set_user_meta(self, uid: str, *, status: str, owner: str, notes: str, updated: str | None = None):
+        self.db.execute("INSERT OR REPLACE INTO user_meta VALUES (?,?,?,?,?)",
+                        (uid, status, owner, notes, updated or datetime.now().isoformat(timespec="seconds")))
         self.db.commit()
 
     def set_pdf(self, uid: str, pdf_url: str, local: str):

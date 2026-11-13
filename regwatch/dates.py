@@ -24,7 +24,8 @@ def parse_date(text: str | None) -> date | None:
     if not text:
         return None
     s = " ".join(str(text).split()).strip()
-    s = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", s, flags=re.I).replace("Sept", "Sep")
+    s = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", s, flags=re.I)
+    s = re.sub(r"\bSept\b\.?", "Sep", s)  # "Sept" -> "Sep", but leave "September" alone
     for fmt in _FORMATS:
         try:
             return datetime.strptime(s, fmt).date()

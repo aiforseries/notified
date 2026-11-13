@@ -5,8 +5,10 @@ import calendar
 import os
 import queue
 import re
+import subprocess
 import threading
-from datetime import date, timedelta
+import webbrowser
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from tkinter import filedialog
 
@@ -14,44 +16,19 @@ import customtkinter as ctk
 
 from . import __version__
 from .paths import resource
+from . import background, updater
+from .browser import ResultsView
 from .runner import TRACKER_NAME, Settings, run
 from .sources import all_sources
 
-# ---------- design tokens: (light, dark) ----------
-BG = ("#F3F5F9", "#0B1220")
-CARD = ("#FFFFFF", "#121B2E")
-CARD_ALT = ("#F8FAFC", "#0F172A")
-BORDER = ("#E2E8F0", "#1F2A40")
-TEXT = ("#0F172A", "#E2E8F0")
-MUTED = ("#64748B", "#94A3B8")
-ACCENT = ("#0F766E", "#14B8A6")
-ACCENT_HOVER = ("#115E59", "#0D9488")
-ACCENT_SOFT = ("#CCFBF1", "#123B3A")
-AMBER = ("#B45309", "#FBBF24")
-DANGER = ("#B91C1C", "#F87171")
-OK = ("#15803D", "#4ADE80")
+from .ui_kit import (ACCENT, ACCENT_HOVER, ACCENT_SOFT, AMBER, BG, BORDER, CARD, CARD_ALT, DANGER, MUTED, OK, TEXT,
+                     Card, Pill, font)
 
 PRESETS = [("7 days", 7), ("30 days", 30), ("90 days", 90), ("This FY", -1), ("Custom", 0)]
 
 
 def fy_start(today: date) -> date:
     return date(today.year if today.month >= 4 else today.year - 1, 4, 1)
-
-
-def font(size=13, weight="normal"):
-    return ctk.CTkFont(family="Segoe UI", size=size, weight=weight)
-
-
-# ---------- small widgets ----------
-class Card(ctk.CTkFrame):
-    def __init__(self, master, **kw):
-        super().__init__(master, fg_color=CARD, corner_radius=14, border_width=1, border_color=BORDER, **kw)
-
-
-class Pill(ctk.CTkLabel):
-    def __init__(self, master, text, fg=ACCENT_SOFT, color=ACCENT, **kw):
-        super().__init__(master, text=text, fg_color=fg, text_color=color, corner_radius=9,
-                         font=font(11, "bold"), padx=8, height=20, **kw)
 
 
 class StatTile(ctk.CTkFrame):
@@ -136,7 +113,7 @@ class DatePicker(ctk.CTkToplevel):
 
 # ---------- main window ----------
 class App(ctk.CTk):
-    def __init__(self):
+    def __init__(self, start_hidden: bool = False):
         self.settings = Settings.load()
         ctk.set_appearance_mode(getattr(self.settings, "theme", "system") or "system")
         super().__init__(fg_color=BG)
@@ -153,6 +130,9 @@ class App(ctk.CTk):
         self.pdf_vars: dict[str, ctk.BooleanVar] = {}
         self.rows: list[tuple[ctk.CTkFrame, str, ctk.CTkFrame]] = []  # (row, search text, group card)
         self.total = self.done = 0
+        self.running = self.auto_run = False
+        self.tray: background.Tray | None = None
+        self._release: updater.Release | None = None
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -161,6 +141,13 @@ class App(ctk.CTk):
         self._refresh_period()
         self._update_count()
         self.after(120, self._drain)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.after(4000, self._tick)
+        if self.settings.check_updates:
+            self.after(2500, self._check_update)
+        if start_hidden:
+            self.withdraw()
+            self._ensure_tray()
 
     def _apply_icon(self):
         try:
@@ -220,6 +207,7 @@ class App(ctk.CTk):
         out = ctk.CTkFrame(sb, fg_color="transparent")
         out.grid(row=4, column=0, sticky="ew", padx=22)
         self.out_var = ctk.StringVar(value=self.settings.output_dir)
+        self.out_var.trace_add("write", lambda *_: self._refresh_out())
         self.out_lbl = ctk.CTkButton(out, text="", height=40, corner_radius=10, anchor="w", font=font(12),
                                      fg_color=CARD_ALT, hover_color=ACCENT_SOFT, text_color=TEXT,
                                      border_width=1, border_color=BORDER, command=self._browse)
@@ -236,8 +224,11 @@ class App(ctk.CTk):
                                             font=font(11), selected_color=ACCENT, selected_hover_color=ACCENT_HOVER)
         self.theme.set((getattr(self.settings, "theme", "system") or "system").title())
         self.theme.pack(fill="x", padx=3)
-        ctk.CTkButton(sb, text=f"About  ·  v{__version__}", fg_color="transparent", hover_color=ACCENT_SOFT,
-                      text_color=MUTED, font=font(11), height=26, command=self._about).grid(row=7, column=0, pady=(0, 14))
+        links = ctk.CTkFrame(sb, fg_color="transparent")
+        links.grid(row=7, column=0, pady=(0, 14))
+        lk = dict(fg_color="transparent", hover_color=ACCENT_SOFT, text_color=MUTED, font=font(11), height=26, width=70)
+        ctk.CTkButton(links, text="Settings", command=self._settings_dialog, **lk).pack(side="left")
+        ctk.CTkButton(links, text=f"About · v{__version__}", command=self._about, **lk).pack(side="left")
 
     def _section(self, parent, row, text):
         ctk.CTkLabel(parent, text=text, font=font(11, "bold"), text_color=MUTED, anchor="w").grid(
@@ -246,27 +237,50 @@ class App(ctk.CTk):
     # ----- main panel -----
     def _main(self):
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.grid(row=0, column=1, sticky="nsew", padx=24, pady=(22, 10))
+        main.grid(row=0, column=1, sticky="nsew", padx=24, pady=(18, 10))
         main.grid_columnconfigure(0, weight=1)
-        main.grid_rowconfigure(1, weight=1)
+        main.grid_rowconfigure(2, weight=1)
+        self.main = main
 
+        # row 0: update banner (hidden until a newer release is found)
+        self.banner = ctk.CTkFrame(main, fg_color=ACCENT_SOFT, corner_radius=12)
+        self.banner_lbl = ctk.CTkLabel(self.banner, text="", font=font(12, "bold"), text_color=ACCENT, anchor="w")
+        self.banner_lbl.pack(side="left", padx=14, pady=8)
+        self.banner_btn = ctk.CTkButton(self.banner, text="Download", width=100, height=30, corner_radius=8,
+                                        fg_color=ACCENT, hover_color=ACCENT_HOVER, font=font(12, "bold"),
+                                        command=self._download_update)
+        self.banner_btn.pack(side="right", padx=8, pady=6)
+        ctk.CTkButton(self.banner, text="What's new", width=90, height=30, corner_radius=8, fg_color="transparent",
+                      text_color=ACCENT, hover_color=CARD, font=font(12),
+                      command=lambda: webbrowser.open(self._release.page) if self._release else None).pack(side="right")
+
+        # row 1: view switcher + view-specific tools
         top = ctk.CTkFrame(main, fg_color="transparent")
-        top.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        ctk.CTkLabel(top, text="Sources", font=font(22, "bold"), text_color=TEXT).pack(side="left")
-        self.count_pill = Pill(top, "")
-        self.count_pill.pack(side="left", padx=10, pady=(4, 0))
-        self.search = ctk.CTkEntry(top, placeholder_text="Filter sources…", width=220, height=34, corner_radius=10,
+        top.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        self.nav = ctk.CTkSegmentedButton(top, values=["Sources", "Results"], height=38, font=font(15, "bold"),
+                                          selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
+                                          command=self._show_view)
+        self.nav.set("Sources")
+        self.nav.pack(side="left")
+        self.fetch_tools = ctk.CTkFrame(top, fg_color="transparent")
+        self.fetch_tools.pack(side="left", fill="x", expand=True)
+        self.count_pill = Pill(self.fetch_tools, "")
+        self.count_pill.pack(side="left", padx=12, pady=(2, 0))
+        self.search = ctk.CTkEntry(self.fetch_tools, placeholder_text="Filter sources…", width=200, height=34, corner_radius=10,
                                    border_color=BORDER, fg_color=CARD, font=font(12))
         self.search.pack(side="right")
         self.search.bind("<KeyRelease>", lambda e: self._filter())
-        ghost = dict(height=34, width=70, corner_radius=10, fg_color="transparent", border_width=1, border_color=BORDER,
+        ghost = dict(height=34, width=64, corner_radius=10, fg_color="transparent", border_width=1, border_color=BORDER,
                      text_color=TEXT, hover_color=ACCENT_SOFT, font=font(12))
-        ctk.CTkButton(top, text="None", command=lambda: self._set_all(False), **ghost).pack(side="right", padx=(0, 8))
-        ctk.CTkButton(top, text="All", command=lambda: self._set_all(True), **ghost).pack(side="right", padx=(0, 6))
+        ctk.CTkButton(self.fetch_tools, text="None", command=lambda: self._set_all(False), **ghost).pack(side="right", padx=(0, 8))
+        ctk.CTkButton(self.fetch_tools, text="All", command=lambda: self._set_all(True), **ghost).pack(side="right", padx=(0, 6))
 
+        # row 2: the two views
         scroll = ctk.CTkScrollableFrame(main, fg_color="transparent", scrollbar_button_color=BORDER)
-        scroll.grid(row=1, column=0, sticky="nsew")
+        scroll.grid(row=2, column=0, sticky="nsew")
         scroll.grid_columnconfigure((0, 1), weight=1, uniform="c")
+        self.sources_view = scroll
+        self.results_view = ResultsView(main, lambda: self.out_var.get(), {s.id: s for s in self.sources})
 
         defaults = {s.id for s in self.sources if s.enabled_by_default}
         if self.settings.enabled:  # saved choice + any default-on sources added since that choice was saved
@@ -341,7 +355,7 @@ class App(ctk.CTk):
 
     def _action_bar(self, main):
         bar = Card(main)
-        bar.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        bar.grid(row=3, column=0, sticky="ew", pady=(12, 0))
         bar.grid_columnconfigure(1, weight=1)
         self.run_btn = ctk.CTkButton(bar, text="Fetch updates", width=170, height=46, corner_radius=12,
                                      font=font(15, "bold"), fg_color=ACCENT, hover_color=ACCENT_HOVER, command=self._start)
@@ -357,8 +371,10 @@ class App(ctk.CTk):
                      text_color=TEXT, hover_color=ACCENT_SOFT, font=font(12))
         self.stop_btn = ctk.CTkButton(btns, text="Stop", width=70, command=self._stop, state="disabled", **ghost)
         self.stop_btn.pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Open tracker", width=120, command=self._open_tracker, **ghost).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Folder", width=80, command=lambda: self._open(Path(self.out_var.get())), **ghost).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Open tracker", width=112, command=self._open_tracker, **ghost).pack(side="left", padx=4)
+        self.digest_btn = ctk.CTkButton(btns, text="Digest PDF", width=96, command=self._make_digest, **ghost)
+        self.digest_btn.pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Folder", width=70, command=lambda: self._open(Path(self.out_var.get())), **ghost).pack(side="left", padx=4)
         self.log_btn = ctk.CTkButton(btns, text="Log ▾", width=70, command=self._toggle_log, **ghost)
         self.log_btn.pack(side="left", padx=4)
 
@@ -412,6 +428,7 @@ class App(ctk.CTk):
     # ----- misc ui -----
     def _set_theme(self, v):
         ctk.set_appearance_mode(v.lower())
+        self.after(50, self.results_view.restyle)
         self.settings.theme = v.lower()  # type: ignore[attr-defined]
         self.settings.save()
 
@@ -460,18 +477,25 @@ class App(ctk.CTk):
             self.log_btn.configure(text="Log ▾")
 
     # ----- run -----
-    def _start(self):
+    def _start(self, auto: bool = False):
+        if self.running:
+            return
         ids = [i for i, v in self.src_vars.items() if v.get()]
         if not ids:
             self.status.configure(text="Tick at least one source.", text_color=DANGER)
             return
-        since = self._since()
         pdf_regs = [r for r, v in self.pdf_vars.items() if v.get()]
         out = Path(self.out_var.get()).expanduser()
-        self.settings.days = dict(PRESETS)[self.preset.get()] or 30
+        if auto:  # scheduled: pick up from the last scheduled check (with overlap), else the chosen period
+            last = datetime.fromisoformat(self.settings.last_auto_run) if self.settings.last_auto_run else None
+            since = (last.date() - timedelta(days=2)) if last else self._since()
+        else:
+            since = self._since()
+            self.settings.days = dict(PRESETS)[self.preset.get()] or 30
         self.settings.enabled, self.settings.pdf_regulators, self.settings.output_dir = ids, pdf_regs, str(out)
         self.settings.known_ids = list(self.src_vars)
         self.settings.save()
+        self.running, self.auto_run = True, auto
         self.cancel_flag = False
         self.total, self.done = len(ids), 0
         self.run_btn.configure(state="disabled", text="Fetching…")
@@ -506,8 +530,22 @@ class App(ctk.CTk):
                 elif kind == "done":
                     self._on_done(payload)
                 elif kind == "error":
+                    self.running = False
                     self._reset_buttons()
                     self.status.configure(text=f"Failed: {payload}", text_color=DANGER)
+                elif kind == "tray":
+                    self._tray_action(payload)
+                elif kind == "update":
+                    self._show_update(payload)
+                elif kind == "update_dl":
+                    self._update_downloaded(payload)
+                elif kind == "digest":
+                    self.digest_btn.configure(state="normal", text="Digest PDF")
+                    if isinstance(payload, Path):
+                        self.status.configure(text=f"Digest saved: {payload.name}", text_color=OK)
+                        os.startfile(str(payload))  # noqa: S606 - file we just wrote
+                    else:
+                        self.status.configure(text=f"Digest failed: {payload}", text_color=DANGER)
         except queue.Empty:
             pass
         self.after(120, self._drain)
@@ -533,6 +571,16 @@ class App(ctk.CTk):
             self.status.configure(text="Writing Excel tracker…")
 
     def _on_done(self, res):
+        self.running = False
+        if self.auto_run:
+            self.settings.last_auto_run = datetime.now().isoformat(timespec="seconds")
+            self.settings.save()
+            if self.settings.notify and res.new_count:
+                self._ensure_tray()
+                if self.tray:
+                    self.tray.notify("RegWatch", self._new_summary(res))
+        if self.nav.get() == "Results":
+            self.results_view.load()
         self._reset_buttons()
         self.last_tracker = res.tracker
         self.progress.set(1)
@@ -556,6 +604,11 @@ class App(ctk.CTk):
     def _open_tracker(self):
         p = self.last_tracker or Path(self.out_var.get()) / TRACKER_NAME
         if p.exists():
+            try:  # fold in Status/Notes edited in the Results view since the last run
+                from .runner import rewrite_tracker
+                p = rewrite_tracker(Path(self.out_var.get())) or p
+            except Exception:  # noqa: BLE001 - open the existing file regardless
+                pass
             self._open(p)
         else:
             self.status.configure(text="No tracker yet. Click 'Fetch updates' first.", text_color=MUTED)
@@ -565,6 +618,251 @@ class App(ctk.CTk):
         if not p.suffix:
             p.mkdir(parents=True, exist_ok=True)
         os.startfile(str(p))  # noqa: S606 - Windows only, user-chosen path
+
+    # ----- views -----
+    def _show_view(self, name: str):
+        if name == "Results":
+            self.sources_view.grid_forget()
+            self.fetch_tools.pack_forget()
+            self.results_view.grid(row=2, column=0, sticky="nsew")
+            self.results_view.load()
+        else:
+            self.results_view.grid_forget()
+            self.fetch_tools.pack(side="left", fill="x", expand=True)
+            self.sources_view.grid(row=2, column=0, sticky="nsew")
+
+    # ----- tray & schedule -----
+    def _ensure_tray(self):
+        if self.tray is None:
+            try:
+                self.tray = background.Tray(post=lambda a: self.q.put(("tray", a)), status=self._schedule_text)
+            except Exception:  # noqa: BLE001 - no tray available: behave like a normal window
+                self.tray = None
+
+    def _schedule_text(self) -> str:
+        s = self.settings
+        nd = background.next_due(s.auto_check, s.auto_time, s.auto_weekday,
+                                 datetime.fromisoformat(s.last_auto_run) if s.last_auto_run else None)
+        return f"Next check: {nd:%a %d %b, %H:%M}" if nd else "Automatic checks: off"
+
+    def _tray_action(self, action: str):
+        if action == "show":
+            self.deiconify()
+            self.lift()
+            self.focus_force()
+        elif action == "check":
+            self._start(auto=True)
+        elif action == "quit":
+            self._quit()
+
+    def _on_close(self):
+        if self.settings.tray_on_close or self.settings.auto_check != "off":
+            self._ensure_tray()
+            if self.tray:
+                self.withdraw()
+                if not getattr(self, "_tray_hint_shown", False):
+                    self.tray.notify("RegWatch is still running",
+                                     "It keeps checking on schedule. Right-click the tray icon to quit.")
+                    self._tray_hint_shown = True
+                return
+        self._quit()
+
+    def _quit(self):
+        if self.tray:
+            self.tray.stop()
+        self.destroy()
+
+    def _tick(self):
+        """Every minute: start a scheduled check when one is due."""
+        try:
+            s = self.settings
+            last = datetime.fromisoformat(s.last_auto_run) if s.last_auto_run else None
+            nd = background.next_due(s.auto_check, s.auto_time, s.auto_weekday, last)
+            if nd and nd <= datetime.now() and not self.running:
+                self._start(auto=True)
+            if self.tray:
+                self.tray.refresh()
+        finally:
+            self.after(60_000, self._tick)
+
+    def _new_summary(self, res) -> str:
+        try:
+            from collections import Counter
+
+            from .store import Store
+            st = Store(Path(self.out_var.get()) / "history.db")
+            try:
+                _, _, ts = st.last_run()
+                c = Counter(r["regulator"] for r in st.all_rows()
+                            if r["first_seen"] and r["first_seen"].isoformat(timespec="seconds") == ts)
+            finally:
+                st.close()
+            top = ", ".join(f"{k} {v}" for k, v in c.most_common(4))
+            return f"{res.new_count} new update{'s' if res.new_count != 1 else ''}: {top}"
+        except Exception:  # noqa: BLE001
+            return f"{res.new_count} new updates"
+
+    # ----- app updates -----
+    def _check_update(self):
+        threading.Thread(target=lambda: self.q.put(("update", updater.latest())), daemon=True).start()
+
+    def _show_update(self, rel):
+        if not rel:
+            return
+        self._release = rel
+        self.banner_lbl.configure(text=f"RegWatch {rel.version} is available  (you have {__version__})")
+        self.banner_btn.configure(state="normal" if rel.exe_url else "disabled", text="Download",
+                                  command=self._download_update)
+        self.banner.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+
+    def _download_update(self):
+        rel = self._release
+        if not rel or not rel.exe_url:
+            return
+        self.banner_btn.configure(state="disabled", text="Downloading…")
+        dest = Path(os.environ.get("USERPROFILE", Path.home())) / "Downloads"
+
+        def work():
+            try:
+                self.q.put(("update_dl", updater.download(rel, dest)))
+            except Exception as e:  # noqa: BLE001
+                self.q.put(("update_dl", e))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _update_downloaded(self, result):
+        if isinstance(result, Path):
+            self.banner_lbl.configure(text=f"Downloaded {result.name}. Close RegWatch and run the new file.")
+            self.banner_btn.configure(state="normal", text="Show file",
+                                      command=lambda: subprocess.Popen(["explorer", "/select,", str(result)]))
+        else:
+            self.banner_lbl.configure(text=f"Download failed ({result}). Use 'What's new' to download it manually.")
+            self.banner_btn.configure(state="normal", text="Retry", command=self._download_update)
+
+    # ----- digest -----
+    def _make_digest(self):
+        out = Path(self.out_var.get())
+        if not (out / "history.db").exists():
+            self.status.configure(text="Fetch updates first, then make a digest.", text_color=MUTED)
+            return
+        since, until = self._since(), date.today()
+        path = filedialog.asksaveasfilename(
+            parent=self, title="Save digest PDF", defaultextension=".pdf", initialdir=str(out),
+            initialfile=f"RegWatch Digest {since:%d %b} - {until:%d %b %Y}.pdf", filetypes=[("PDF", "*.pdf")])
+        if not path:
+            return
+        self.digest_btn.configure(state="disabled", text="Building…")
+
+        def work():
+            try:
+                from .digest import build_digest
+                from .store import Store
+                st = Store(out / "history.db")
+                try:
+                    rows = st.all_rows()
+                finally:
+                    st.close()
+                try:
+                    from .dedupe import merge_duplicates
+                    rows = merge_duplicates(rows)
+                except ImportError:
+                    pass
+                self.q.put(("digest", build_digest(rows, since, until, Path(path))))
+            except Exception as e:  # noqa: BLE001
+                self.q.put(("digest", f"{type(e).__name__}: {e}"))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    # ----- settings -----
+    def _settings_dialog(self):
+        s = self.settings
+        win = ctk.CTkToplevel(self)
+        win.title("Settings")
+        win.geometry("470x590")
+        win.resizable(False, False)
+        win.configure(fg_color=BG)
+        win.transient(self)
+        win.after(50, win.grab_set)
+        win.after(250, lambda: win.iconbitmap(str(resource("assets/regwatch.ico"))))
+        card = Card(win)
+        card.pack(fill="both", expand=True, padx=16, pady=(16, 10))
+
+        def head(t):
+            ctk.CTkLabel(card, text=t, font=font(11, "bold"), text_color=MUTED, anchor="w").pack(fill="x", padx=18, pady=(16, 6))
+
+        head("AUTOMATIC CHECKS")
+        mode = ctk.CTkSegmentedButton(card, values=["Off", "Daily", "Weekly"], font=font(12),
+                                      selected_color=ACCENT, selected_hover_color=ACCENT_HOVER)
+        mode.set(s.auto_check.title())
+        mode.pack(fill="x", padx=16)
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=(8, 0))
+        menu = dict(height=34, corner_radius=10, fg_color=CARD_ALT, button_color=CARD_ALT, button_hover_color=ACCENT_SOFT,
+                    text_color=TEXT, dropdown_fg_color=CARD, dropdown_text_color=TEXT, dropdown_hover_color=ACCENT_SOFT,
+                    font=font(12), dropdown_font=font(12))
+        day = ctk.CTkOptionMenu(row, values=background.WEEKDAYS, width=150, **menu)
+        day.set(background.WEEKDAYS[s.auto_weekday])
+        day.pack(side="left")
+        times = [f"{h:02d}:00" for h in range(6, 23)]
+        at = ctk.CTkOptionMenu(row, values=times, width=100, **menu)
+        at.set(s.auto_time if s.auto_time in times else "09:00")
+        at.pack(side="left", padx=8)
+        hint = ctk.CTkLabel(card, text="", font=font(11), text_color=MUTED, anchor="w", justify="left", wraplength=390)
+        hint.pack(fill="x", padx=18, pady=(6, 0))
+
+        def sync(*_):
+            m = mode.get().lower()
+            day.configure(state="normal" if m == "weekly" else "disabled")
+            at.configure(state="normal" if m != "off" else "disabled")
+            hint.configure(text=("Checks the sources ticked on the Sources page while RegWatch is open or in the "
+                                 "tray, and catches up if the PC was off at that time." if m != "off"
+                                 else "Only when you click 'Fetch updates'."))
+        mode.configure(command=sync)
+        sync()
+
+        head("BACKGROUND")
+        sw = dict(font=font(12), text_color=TEXT, progress_color=ACCENT)
+        v_tray = ctk.BooleanVar(value=s.tray_on_close)
+        ctk.CTkSwitch(card, text="Keep running in the tray when I close the window", variable=v_tray, **sw).pack(anchor="w", padx=18, pady=4)
+        try:
+            auto_on = background.autostart_enabled()
+        except Exception:  # noqa: BLE001
+            auto_on = False
+        v_start = ctk.BooleanVar(value=auto_on)
+        ctk.CTkSwitch(card, text="Start with Windows (in the tray)", variable=v_start, **sw).pack(anchor="w", padx=18, pady=4)
+        v_notify = ctk.BooleanVar(value=s.notify)
+        ctk.CTkSwitch(card, text="Notify me when a scheduled check finds updates", variable=v_notify, **sw).pack(anchor="w", padx=18, pady=4)
+
+        head("APP UPDATES")
+        v_upd = ctk.BooleanVar(value=s.check_updates)
+        ctk.CTkSwitch(card, text="Check GitHub for a newer RegWatch at start-up", variable=v_upd, **sw).pack(anchor="w", padx=18, pady=(4, 16))
+
+        def save():
+            s.auto_check = mode.get().lower()
+            s.auto_weekday = background.WEEKDAYS.index(day.get())
+            s.auto_time = at.get()
+            s.tray_on_close, s.notify, s.check_updates = v_tray.get(), v_notify.get(), v_upd.get()
+            if s.auto_check != "off" and not s.last_auto_run:
+                s.last_auto_run = datetime.now().isoformat(timespec="seconds")  # don't fire the moment it's enabled
+            s.save()
+            try:
+                background.set_autostart(v_start.get())
+            except Exception:  # noqa: BLE001
+                pass
+            if v_start.get() or s.auto_check != "off":
+                self._ensure_tray()
+            if self.tray:
+                self.tray.refresh()
+            self.status.configure(text=f"Settings saved. {self._schedule_text()}.", text_color=OK)
+            win.destroy()
+
+        foot = ctk.CTkFrame(win, fg_color="transparent")
+        foot.pack(fill="x", padx=16, pady=(0, 16))
+        ctk.CTkButton(foot, text="Save", width=110, height=36, corner_radius=10, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+                      font=font(13, "bold"), command=save).pack(side="right")
+        ctk.CTkButton(foot, text="Cancel", width=90, height=36, corner_radius=10, fg_color="transparent", border_width=1,
+                      border_color=BORDER, text_color=TEXT, hover_color=ACCENT_SOFT, font=font(12),
+                      command=win.destroy).pack(side="right", padx=8)
 
     def _about(self):
         win = ctk.CTkToplevel(self)
@@ -592,10 +890,10 @@ class App(ctk.CTk):
         ctk.CTkButton(win, text="Close", fg_color=ACCENT, hover_color=ACCENT_HOVER, command=win.destroy).pack(pady=(0, 16))
 
 
-def main():
+def main(start_hidden: bool = False):
     try:  # own taskbar identity, so Windows shows the RegWatch icon instead of python.exe's
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("RegWatch.Desktop")
     except Exception:  # noqa: BLE001 - non-Windows / older Windows
         pass
-    App().mainloop()
+    App(start_hidden=start_hidden).mainloop()

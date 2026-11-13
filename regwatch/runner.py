@@ -41,7 +41,14 @@ class Settings:
     enabled: list[str] = field(default_factory=list)       # source ids; empty = defaults
     pdf_regulators: list[str] = field(default_factory=list)
     known_ids: list[str] = field(default_factory=list)    # sources that existed when `enabled` was saved
-    theme: str = "system"                                  # light | dark | system
+    theme: str = "system"
+    auto_check: str = "off"           # off | daily | weekly
+    auto_time: str = "09:00"
+    auto_weekday: int = 0             # 0 = Monday
+    tray_on_close: bool = False       # keep running in the tray when the window is closed
+    notify: bool = True               # Windows notification after a scheduled check
+    check_updates: bool = True        # look for a newer RegWatch on GitHub at start-up
+    last_auto_run: str = ""           # ISO datetime of the last scheduled check                                  # light | dark | system
 
     @classmethod
     def load(cls) -> "Settings":
@@ -149,11 +156,51 @@ def run(since: date, source_ids: list[str], pdf_regulators: list[str], output_di
             if n % 10 == 0:
                 progress(f"  PDFs: {n}/{len(want)}")
         progress(f"  {saved} PDFs saved")
+        try:  # full-text index of the saved PDFs (search never blocks writing the tracker)
+            from .search import PdfIndex
+            idx = PdfIndex(output_dir / "history.db")
+            todo = len(idx.pending(store.all_rows()))
+            if todo and not cancel():
+                progress(f"Indexing PDFs 0/{todo} ...")
+                n_ok = idx.index_pending(store.all_rows(), progress=progress, cancel=cancel)
+                progress(f"  {n_ok} PDFs indexed for search")
+            idx.close()
+        except Exception as e:  # noqa: BLE001
+            log.warning("pdf indexing failed: %s", e)
+            progress(f"  PDF indexing skipped: {type(e).__name__}: {str(e)[:120]}")
 
     progress("Writing Excel tracker ...")
+    run_uids = {i.uid for i in all_items}
+    store.set_last_run(run_uids, since, run_ts)
+    store.kv_set("run_log", json.dumps(run_log))
+    from .usercols import merged
     tracker = write_tracker(output_dir / TRACKER_NAME, store.all_rows(), new_uids, run_log, sources,
-                            run_uids={i.uid for i in all_items})
+                            run_uids=run_uids, user_cols=merged(store, output_dir / TRACKER_NAME))
     store.close()
     failures = [e["name"] for e in run_log if e["status"] != "OK"]
     progress(f"Done: {len(new_uids)} new, {len(all_items)} in period, {len(failures)} source(s) failed.")
     return RunResult(tracker, len(new_uids), len(all_items), saved, failures)
+
+
+def rewrite_tracker(output_dir: Path) -> Path | None:
+    """Re-write the tracker without fetching, when Status/Owner/Notes were edited in the app after the
+    tracker was last saved. Returns the path written, or None if nothing needed doing."""
+    tracker = output_dir / TRACKER_NAME
+    db = output_dir / "history.db"
+    if not db.exists():
+        return None
+    store = Store(db)
+    try:
+        meta = store.user_meta()
+        mtime = datetime.fromtimestamp(tracker.stat().st_mtime) if tracker.exists() else None
+        if mtime and not any(m.get("updated") and datetime.fromisoformat(m["updated"]) > mtime for m in meta.values()):
+            return None
+        from .usercols import merged
+        run_uids, _, run_ts = store.last_run()
+        rows = store.all_rows()
+        new_uids = {r["uid"] for r in rows if r["first_seen"] and r["first_seen"].isoformat(timespec="seconds") == run_ts}
+        run_log = json.loads(store.kv_get("run_log", "[]"))
+        return write_tracker(tracker, rows, new_uids, run_log, {s.id: s for s in all_sources()},
+                             run_uids=run_uids or None, user_cols=merged(store, tracker))
+    finally:
+        store.close()
